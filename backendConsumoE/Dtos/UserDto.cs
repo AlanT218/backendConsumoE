@@ -1,4 +1,6 @@
-﻿namespace backendConsumoE.Dtos
+﻿using System.Text.Json.Serialization;
+
+namespace backendConsumoE.Dtos
 {
     public class UserDto
     {
@@ -9,7 +11,9 @@
         public string Contra { get; set; }
 
         // Claves foráneas
+        [JsonIgnore]
         public int IdRol { get; set; }  // FK a la tabla ROL
+        [JsonIgnore]
         public int IdEstado { get; set; }  // FK a la tabla ESTADO
 
         // Propiedades (FK)

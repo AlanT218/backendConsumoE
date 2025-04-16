@@ -1,43 +1,34 @@
-﻿using System.Data.SqlClient;
+﻿using Microsoft.Data.SqlClient;
+using System;
 
 namespace backendConsumoE.Utilities
 {
     public class DbContextUtility
     {
-        static readonly string SERVER = "DESKTOP-3AKB9J2\\SQLSERVER";  // Nombre de la instancia del servidor SQL
+        static readonly string SERVER = "DESKTOP-3AKB9J2\\SQLSERVER";
         static readonly string DB_NAME = "bdGestion";
         static readonly string DB_USER = "bd";
         static readonly string DB_PASSWORD = "1234";
 
-        static readonly string Conn = "server=" + SERVER + ";database=" + DB_NAME + ";user id=" + DB_USER + ";password=" + DB_PASSWORD + ";MultipleActiveResultSets=true";
-        //mi conexion:
-        SqlConnection Con = new SqlConnection(Conn);
+        //cadena 
+        static readonly string Conn = $"Server={SERVER};Database={DB_NAME};User Id={DB_USER};Password={DB_PASSWORD};MultipleActiveResultSets=true;TrustServerCertificate=True;Encrypt=True";
 
-        //procedimiento que abre la conexion sqlsever
-        public void Connect()
+        public SqlConnection GetOpenConnection()
         {
+            var connection = new SqlConnection(Conn);
             try
             {
-                Con.Open();
+                Console.WriteLine("Abriendo conexión con la cadena:");
+                Console.WriteLine(Conn); // Verifica que se está usando esta cadena
+
+                connection.Open();
             }
             catch (Exception ex)
             {
-                Console.WriteLine(ex.Message);
+                Console.WriteLine($"Error al abrir la conexión: {ex.Message}");
+                throw;
             }
-        }
-
-        //procedimiento que cierra la conexion sqlserver
-        public void Disconnect()
-        {
-            Con.Close();
-        }
-
-        //funcion que devuelve la conexion sqlserver
-        public SqlConnection CONN()
-        {
-            return Con;
+            return connection;
         }
     }
-
 }
-
