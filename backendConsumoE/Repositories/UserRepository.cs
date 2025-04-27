@@ -5,132 +5,119 @@ using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
-public class UserRepository
+namespace backendConsumoE.Repositories
 {
-    private readonly DbContextUtility _dbContextUtility;
-
-    public UserRepository()
+    public class UserRepository
     {
-        _dbContextUtility = new DbContextUtility();
-    }
+        private readonly DbContextUtility _dbContextUtility;
 
-    // Método para obtener los usuarios
-    public async Task<List<UserDto>> ObtenerUsuarios()
-    {
-        List<UserDto> listUserDto = new List<UserDto>();
-        string sql = "SELECT U.id_usuario, U.nombre, U.apellido, U.correo, " +
-                     "U.id_rol, R.nombre AS rol_nombre, U.id_estado, S.nombre AS estado_nombre " +
-                     "FROM [bdGestion].[dbo].[usuario] U " +
-                     "JOIN [bdGestion].[dbo].[ROL] R ON R.id_rol = U.id_rol " +
-                     "JOIN [bdGestion].[dbo].[ESTADO] S ON S.id_estado = U.id_estado";
-
-        try
+        public UserRepository(DbContextUtility dbContextUtility)
         {
-            // Usamos 'using' para garantizar que la conexión se cierre automáticamente
-            using (var connection = _dbContextUtility.GetOpenConnection())
+            _dbContextUtility = dbContextUtility ?? throw new ArgumentNullException(nameof(dbContextUtility));
+        }
+
+        public async Task<List<UserDto>> ObtenerUsuarios()
+        {
+            var usuarios = new List<UserDto>();
+
+            const string sql = @"
+                SELECT U.id_usuario, U.nombre, U.apellido, U.correo, 
+                       U.id_rol, R.nombre AS rol_nombre, 
+                       U.id_estado, S.nombre AS estado_nombre 
+                FROM [bdGestion].[dbo].[usuario] U
+                JOIN [bdGestion].[dbo].[ROL] R ON R.id_rol = U.id_rol
+                JOIN [bdGestion].[dbo].[ESTADO] S ON S.id_estado = U.id_estado";
+
+            try
             {
-                using (SqlCommand command = new SqlCommand(sql, connection))
+                using var connection = _dbContextUtility.GetOpenConnection();
+                using var command = new SqlCommand(sql, connection);
+                using var reader = await command.ExecuteReaderAsync();
+
+                while (reader.Read())
                 {
-                    using (SqlDataReader reader = await command.ExecuteReaderAsync())
+                    usuarios.Add(new UserDto
                     {
-                        while (reader.Read())
-                        {
-                            listUserDto.Add(new UserDto
-                            {
-                                Id = reader.GetInt32(0),
-                                Nombre = reader.GetString(1),
-                                Apellido = reader.GetString(2),
-                                Correo = reader.GetString(3),
-                                IdRol = reader.GetInt32(4),
-                                RolNombre = reader.GetString(5),
-                                IdEstado = reader.GetInt32(6),
-                                EstadoNombre = reader.GetString(7)
-                            });
-                        }
-                    }
+                        Id = reader.GetInt32(0),
+                        Nombre = reader.GetString(1),
+                        Apellido = reader.GetString(2),
+                        Correo = reader.GetString(3),
+                        IdRol = reader.GetInt32(4),
+                        RolNombre = reader.GetString(5),
+                        IdEstado = reader.GetInt32(6),
+                        EstadoNombre = reader.GetString(7)
+                    });
                 }
             }
-        }
-        catch (Exception ex)
-        {
-            throw new Exception("Error al obtener los usuarios: " + ex.Message);
-        }
-
-        return listUserDto;
-    }
-
-    // Método para registrar un usuario
-    public async Task<int> RegistrarUsuario(RequestUserDto usuario)
-    {
-        string sql = "INSERT INTO [bdGestion].[dbo].[usuario] (nombre, apellido, correo, contra, id_rol, id_estado) " +
-                     "VALUES (@Nombre, @Apellido, @Correo, @Contra, @IdRol, @IdEstado)";
-
-        try
-        {
-            // Usamos 'using' para manejar la conexión automáticamente
-            using (var connection = _dbContextUtility.GetOpenConnection())
+            catch (Exception ex)
             {
-                using (SqlCommand command = new SqlCommand(sql, connection))
-                {
-                    command.Parameters.AddWithValue("@Nombre", usuario.Nombre);
-                    command.Parameters.AddWithValue("@Apellido", usuario.Apellido);
-                    command.Parameters.AddWithValue("@Correo", usuario.Correo);
-                    command.Parameters.AddWithValue("@Contra", usuario.Contra);
-                    command.Parameters.AddWithValue("@IdRol", 2); // Se supone que el rol es '2' por defecto
-                    command.Parameters.AddWithValue("@IdEstado", 1); // Se supone que el estado es '1' por defecto
+                throw new Exception("Error al obtener los usuarios: " + ex.Message);
+            }
 
-                    // Ejecutamos el comando asincrónicamente
-                    await command.ExecuteNonQueryAsync();
-                }
+            return usuarios;
+        }
+
+        public async Task<int> RegistrarUsuario(RequestUserDto usuario)
+        {
+            const string sql = @"
+                INSERT INTO [bdGestion].[dbo].[usuario] 
+                (nombre, apellido, correo, contra, id_rol, id_estado) 
+                VALUES (@Nombre, @Apellido, @Correo, @Contra, @IdRol, @IdEstado)";
+
+            try
+            {
+                using var connection = _dbContextUtility.GetOpenConnection();
+                using var command = new SqlCommand(sql, connection);
+
+                command.Parameters.AddWithValue("@Nombre", usuario.Nombre);
+                command.Parameters.AddWithValue("@Apellido", usuario.Apellido);
+                command.Parameters.AddWithValue("@Correo", usuario.Correo);
+                command.Parameters.AddWithValue("@Contra", usuario.Contra);
+                command.Parameters.AddWithValue("@IdRol", 2);      // rol por defecto
+                command.Parameters.AddWithValue("@IdEstado", 1);   // estado activo
+
+                return await command.ExecuteNonQueryAsync(); // Devuelve cantidad de filas afectadas
+            }
+            catch (Exception ex)
+            {
+                throw new Exception("Error al registrar el usuario en la base de datos: " + ex.Message);
             }
         }
-        catch (Exception ex)
+
+        public async Task<UserDto> Login(RequestInicioSesionDto request)
         {
-            throw new Exception("Error al registrar el usuario en la base de datos: " + ex.Message);
-        }
+            const string sql = @"
+        SELECT U.id_usuario, U.nombre, R.nombre AS rol_nombre 
+        FROM [bdGestion].[dbo].[usuario] U 
+        JOIN [bdGestion].[dbo].[ROL] R ON R.id_rol = U.id_rol 
+        WHERE U.correo = @Correo AND U.contra = @Contra";
 
-        return 1; // Devuelve el id del nuevo usuario, o puedes modificarlo para devolver algo más relevante.
-    }
-
-    // Método para login de usuario
-    public async Task<UserDto?> Login(RequestInicioSesionDto user)
-    {
-        UserDto? userResult = null;
-        string sql = "SELECT U.nombre, R.nombre AS rol_nombre " +
-                     "FROM [bdGestion].[dbo].[usuario] U " +
-                     "JOIN [bdGestion].[dbo].[ROL] R ON R.id_rol = U.id_rol " +
-                     "WHERE U.correo = @Correo AND U.contra = @Contra;";
-
-        try
-        {
-            // Usamos 'using' para manejar la conexión automáticamente
-            using (var connection = _dbContextUtility.GetOpenConnection())
+            try
             {
-                using (SqlCommand command = new SqlCommand(sql, connection))
-                {
-                    command.Parameters.AddWithValue("@Correo", user.Correo);
-                    command.Parameters.AddWithValue("@Contra", user.Contra);
+                using var connection = _dbContextUtility.GetOpenConnection();
+                using var command = new SqlCommand(sql, connection);
 
-                    using (SqlDataReader reader = await command.ExecuteReaderAsync())
+                command.Parameters.AddWithValue("@Correo", request.Correo);
+                command.Parameters.AddWithValue("@Contra", request.Contra);
+
+                using var reader = await command.ExecuteReaderAsync();
+                if (reader.Read())
+                {
+                    return new UserDto
                     {
-                        if (reader.Read())
-                        {
-                            userResult = new UserDto
-                            {
-                                Nombre = reader.GetString(reader.GetOrdinal("nombre")),
-                                RolNombre = reader.GetString(reader.GetOrdinal("rol_nombre"))
-                            };
-                        }
-                    }
+                        Id = Convert.ToInt32(reader["id_usuario"]),  // <-- Aquí mapea el ID
+                        Nombre = reader["nombre"].ToString(),
+                        RolNombre = reader["rol_nombre"].ToString()
+                    };
                 }
             }
-        }
-        catch (Exception ex)
-        {
-            throw new Exception("Error en la base de datos: " + ex.Message);
-        }
+            catch (Exception ex)
+            {
+                throw new Exception("Error en la base de datos: " + ex.Message);
+            }
 
-        return userResult;
+            return null;
+        }
     }
 }
 

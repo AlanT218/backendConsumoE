@@ -15,58 +15,50 @@ namespace backendConsumoE.Services
             _jwtSettings = jwtSettings;
         }
 
-        public async Task<List<UserDto>> ObtenerUsuario()
+        public async Task<List<UserDto>> ObtenerUsuarios()
         {
             return await _userRepository.ObtenerUsuarios();
         }
-        public async Task<ResponseInicionSesionDto> InicioSesion(RequestInicioSesionDto requestInicioSesionDto)
+
+        public async Task<ResponseInicionSesionDto> InicioSesion(RequestInicioSesionDto request)
         {
-            ResponseInicionSesionDto responseDto = new();
+            var response = new ResponseInicionSesionDto();
+            request.Contra = EncryptUtility.EncryptPassword(request.Contra);
 
-            requestInicioSesionDto.Contra = EncryptUtility.EncryptPassword(requestInicioSesionDto.Contra);
+            var user = await _userRepository.Login(request);
 
-            // Creamos una conexión directa sin convertir el DTO
-            var user = await _userRepository.Login(requestInicioSesionDto); // Este método debe aceptar RequestInicioSesionDto
-
-            if (user != null && !string.IsNullOrEmpty(user.Nombre))
+            if (user is not null && !string.IsNullOrWhiteSpace(user.Nombre))
             {
-                responseDto = JwtUtility.GenTokenkey(responseDto, _jwtSettings);
-                responseDto.Respuesta = 1;
-                responseDto.Mensaje = $"Inicio de sesión exitoso. Bienvenid@ {user.Nombre}";
+                response.IdUsuario = user.Id; // Agregas el ID antes de crear el token
+                response = JwtUtility.GenTokenkey(response, _jwtSettings);
+                response.Respuesta = 1;
+                response.Mensaje = $"Inicio de sesión exitoso. Bienvenid@ {user.Nombre}";
             }
             else
             {
-                responseDto.Respuesta = 0;
-                responseDto.Mensaje = "Inicio de sesión fallido, correo y/o contraseña incorrectos.";
+                response.Respuesta = 0;
+                response.Mensaje = "Inicio de sesión fallido, correo y/o contraseña incorrectos.";
             }
 
-            return responseDto;
+            return response;
         }
-
 
         public async Task<ResponseGeneralDto> CrearUsuario(RequestUserDto requestUserDto)
         {
-            ResponseGeneralDto responseGeneralDto = new();
-
-            // Encriptar la contraseña antes de guardar
+            var response = new ResponseGeneralDto();
             requestUserDto.Contra = EncryptUtility.EncryptPassword(requestUserDto.Contra);
 
-            // Usar la instancia del repositorio (_userRepository), no la clase directamente
-            var result = await _userRepository.RegistrarUsuario(requestUserDto);
+            var filasAfectadas = await _userRepository.RegistrarUsuario(requestUserDto);
 
-            if (result == 1)
-            {
-                responseGeneralDto.Respuesta = 1;
-                responseGeneralDto.Mensaje = "Usuario creado exitosamente.";
-            }
-            else
-            {
-                responseGeneralDto.Respuesta = 0;
-                responseGeneralDto.Mensaje = "Algo pasó al registrar el usuario.";
-            }
+            response.Respuesta = filasAfectadas > 0 ? 1 : 0;
+            response.Mensaje = filasAfectadas > 0
+                ? "Usuario creado exitosamente."
+                : "Algo pasó al registrar el usuario.";
 
-            return responseGeneralDto;
+            return response;
         }
+    }
+}
 
 
 
@@ -97,6 +89,4 @@ namespace backendConsumoE.Services
         //    return await _userRepository.Login(user);
         //}
 
-    }
-}
 

@@ -1,12 +1,14 @@
 using backendConsumoE.Dtos;
+using backendConsumoE.Repositories;
 using backendConsumoE.Services;
+using backendConsumoE.Utilities;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add Jwt Settings
+// Configuración de JwtSettings
 var bindJwtSettings = new JwtSettingsDto();
 builder.Configuration.Bind("JsonWebTokenKeys", bindJwtSettings);
 builder.Services.AddSingleton(bindJwtSettings);
@@ -47,15 +49,25 @@ builder.Services.AddAuthentication(options =>
     };
 });
 
-// Authorization
-builder.Services.AddAuthorization();
-
-// Add services to the container
+// Configuración de servicios
 builder.Services.AddControllers();
-builder.Services.AddScoped<UserService, UserService>();
-builder.Services.AddScoped<UserRepository, UserRepository>();
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowFrontend", policy =>
+    {
+        policy.WithOrigins("https://localhost:7291") // URL frontend
+              .AllowAnyHeader()
+              .AllowAnyMethod();
+    });
+});
+builder.Services.AddScoped<UserService>();
+builder.Services.AddScoped<UserRepository>();
+builder.Services.AddScoped<DbContextUtility>();
+builder.Services.AddScoped<DuenioCasaService>();
+builder.Services.AddScoped<DuenioCasaRepository>();
 
-// Swagger config
+
+// Configuración Swagger
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
 {
@@ -78,7 +90,7 @@ builder.Services.AddSwaggerGen(options =>
 
     options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {
-        Description = "Ingrese 'Bearer' [espacio] seguido de su token JWT válido en el campo a continuación.\r\n\r\nEjemplo: \"Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9\".",
+        Description = "Ingrese 'Bearer' seguido de su token JWT válido en el campo de autorización.\r\nEjemplo: \"Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9\".",
         Name = "Authorization",
         In = ParameterLocation.Header,
         Type = SecuritySchemeType.Http,
@@ -104,7 +116,7 @@ builder.Services.AddSwaggerGen(options =>
 
 var app = builder.Build();
 
-// Middleware pipeline
+// Middleware
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
@@ -113,9 +125,9 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
-app.UseAuthentication(); 
-app.UseAuthorization();  
-
+app.UseCors("AllowFrontend");
+app.UseAuthentication();
+app.UseAuthorization();
 app.MapControllers();
 
 app.Run();
