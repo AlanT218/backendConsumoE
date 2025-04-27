@@ -1,5 +1,4 @@
-﻿
-using backendConsumoE.Dtos;
+﻿using backendConsumoE.Dtos;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
@@ -14,44 +13,45 @@ namespace backendConsumoE.Utilities
             try
             {
                 if (userToken == null) throw new ArgumentException(nameof(userToken));
+
                 // Obtén la clave secreta
                 var key = System.Text.Encoding.ASCII.GetBytes(jwtSettings.IssuerSigningKey);
+
                 DateTime expireTime = DateTime.Now;
                 if (jwtSettings.FlagExpirationTimeHours)
                 {
                     expireTime = DateTime.Now.AddHours(jwtSettings.ExpirationTimeHours);
                 }
+                else if (jwtSettings.FlagExpirationTimeMinutes)
+                {
+                    expireTime = DateTime.Now.AddMinutes(jwtSettings.ExpirationTimeMinutes);
+                }
                 else
                 {
-                    if (jwtSettings.FlagExpirationTimeMinutes)
-                    {
-                        expireTime = DateTime.Now.AddMinutes(jwtSettings.ExpirationTimeMinutes);
-                    }
-                    else
-                    {
-                        return null;
-                    }
+                    return null;
                 }
 
                 // Definir las reclamaciones
-                IEnumerable<Claim> claims = new Claim[] {
-                new Claim("TiempoExpiracion", expireTime.ToString("yyyy-MM-dd HH:mm:ss")),
-                //new Claim("Usuario", "OscarGomez")
-            };
+                var claims = new List<Claim>
+                {
+                    new Claim("TiempoExpiracion", expireTime.ToString("yyyy-MM-dd HH:mm:ss")),
+                    new Claim(ClaimTypes.NameIdentifier, userToken.IdUsuario.ToString()) // <-- Aquí agregamos el ID de usuario
+                };
 
                 // Generar el token JWT
                 var JWTToken = new JwtSecurityToken(
                     issuer: jwtSettings.ValidIssuer,
                     audience: jwtSettings.ValidAudience,
                     claims: claims,
-                    notBefore: new DateTimeOffset(DateTime.Now).DateTime,
-                    expires: new DateTimeOffset(expireTime).DateTime,
+                    notBefore: DateTime.Now,
+                    expires: expireTime,
                     signingCredentials: new SigningCredentials(new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha256)
                 );
 
                 // Asignar el token generado
                 userToken.Token = new JwtSecurityTokenHandler().WriteToken(JWTToken);
                 userToken.TiempoExpiracion = expireTime;
+
                 return userToken;
             }
             catch (Exception)
@@ -60,5 +60,4 @@ namespace backendConsumoE.Utilities
             }
         }
     }
-
 }
