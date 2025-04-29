@@ -82,5 +82,70 @@ namespace backendConsumoE.Controllers
             }
         }
 
+        // LISTAR electrodomésticos por hogar
+        [HttpGet("zona-electro/hogar/{idHogar}")]
+        public async Task<IActionResult> ObtenerZonaElectPorHogar(int idHogar)
+        {
+            try
+            {
+                var lista = await _duenioCasaService.ObtenerZonaElectPorHogarAsync(idHogar);
+
+                if (lista == null || !lista.Any())
+                {
+                    return Ok(new { mensaje = "No hay electrodomésticos registrados para este hogar.", datos = new List<ZonaElectDto>() });
+                }
+
+                return Ok(lista);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { mensaje = "Error al obtener los electrodomésticos del hogar: " + ex.Message });
+            }
+        }
+
+        // ACTUALIZAR electrodoméstico
+        [HttpPut("zona-electro/{idZonaElectro}")]
+        public async Task<IActionResult> ActualizarZonaElectro(int idZonaElectro, [FromBody] ZonaElectroActualizarDto dto)
+        {
+            try
+            {
+                if (idZonaElectro != dto.IdZonaElectro)
+                {
+                    return BadRequest(new { mensaje = "El ID en la ruta no coincide con el del cuerpo de la solicitud." });
+                }
+
+                var actualizado = await _duenioCasaService.ActualizarZonaElectroAsync(dto);
+
+                if (actualizado)
+                    return Ok(new { mensaje = "Electrodoméstico actualizado correctamente." });
+                else
+                    return NotFound(new { mensaje = "No se encontró el electrodoméstico para actualizar." });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { mensaje = "Error al actualizar el electrodoméstico: " + ex.Message });
+            }
+        }
+
+        // ELIMINAR electrodoméstico
+        [HttpDelete("zona-electro/{idZonaElect}")]
+        public async Task<IActionResult> EliminarZonaElect(int idZonaElect)
+        {
+            try
+            {
+                var eliminado = await _duenioCasaService.EliminarZonaElectAsync(idZonaElect);
+
+                if (eliminado)
+                    return Ok(new { mensaje = "Electrodoméstico eliminado correctamente." });
+                else
+                    return NotFound(new { mensaje = "No se encontró el electrodoméstico a eliminar." });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { mensaje = "Error al eliminar el electrodoméstico: " + ex.Message });
+            }
+        }
+
+
     }
 }
