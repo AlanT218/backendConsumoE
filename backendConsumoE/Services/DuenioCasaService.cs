@@ -12,6 +12,19 @@ namespace backendConsumoE.Services
         {
             _duenioCasaRepository = duenioCasaRepository;
         }
+        public async Task<bool> RegistrarHogar(HogarDto dto)
+        {
+            if (string.IsNullOrWhiteSpace(dto.Nombre))
+                throw new ArgumentException("El nombre del hogar no puede estar vacío.");
+
+            if (dto.IdTipo <= 0)
+                throw new ArgumentException("Debe especificar un tipo válido de hogar.");
+
+            if (dto.IdUsuario <= 0)
+                throw new ArgumentException("Debe especificar un usuario válido.");
+
+            return await _duenioCasaRepository.RegistrarHogar(dto);
+        }
 
         public async Task<List<HogarDto>> ObtenerHogaresPorUsuario(int idUsuario)
         {
@@ -50,7 +63,7 @@ namespace backendConsumoE.Services
             }
         }
 
-        public async Task<List<ZonaElectDto>> ObtenerZonaElectPorHogarAsync(int idHogar)
+        public async Task<List<ZonaElectroVistaDto>> ObtenerZonaElectPorHogarAsync(int idHogar)
         {
             try
             {
@@ -58,23 +71,25 @@ namespace backendConsumoE.Services
             }
             catch (Exception ex)
             {
-                throw new Exception("Error al obtener los electrodomésticos del hogar: " + ex.Message);
+                throw new Exception("Error en el servicio al obtener electrodomésticos por hogar: " + ex.Message);
             }
         }
 
-        public async Task<bool> ActualizarZonaElectroAsync(ZonaElectroActualizarDto dto)
+
+        public async Task ActualizarZonaElectroAsync(int idZonaElect, ZonaElectroActualizarDto dto)
         {
             try
             {
-                return await _duenioCasaRepository.ActualizarZonaElectroAsync(dto);
+                await _duenioCasaRepository.ActualizarZonaElectroAsync(idZonaElect, dto);
             }
             catch (Exception ex)
             {
-                throw new Exception("Error al actualizar el electrodoméstico: " + ex.Message);
+                throw new Exception("Error en el servicio al actualizar el electrodoméstico: " + ex.Message);
             }
         }
 
 
+        // ELIMINAR un electrodoméstico
         public async Task<bool> EliminarZonaElectAsync(int idZonaElect)
         {
             try
@@ -86,6 +101,16 @@ namespace backendConsumoE.Services
                 throw new Exception("Error al eliminar el electrodoméstico: " + ex.Message);
             }
         }
+
+        public async Task CambiarEstadoElectrodomesticoAsync(CambioEstadoDto dto)
+        {
+            await _duenioCasaRepository.CambiarEstadoElectrodomesticoAsync(dto);
+        }
+        public async Task<bool> ObtenerEstadoZonaElectAsync(int idZonaElect)
+        {
+            return await _duenioCasaRepository.ObtenerEstadoZonaElectAsync(idZonaElect);
+        }
+
 
     }
 }

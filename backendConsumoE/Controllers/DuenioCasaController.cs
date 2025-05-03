@@ -16,6 +16,25 @@ namespace backendConsumoE.Controllers
         {
             _duenioCasaService = duenioCasaService;
         }
+        
+        
+        [HttpPost("registrar-hogar")]
+        public async Task<IActionResult> RegistrarHogar([FromBody] HogarDto dto)
+        {
+            try
+            {
+                var resultado = await _duenioCasaService.RegistrarHogar(dto);
+                if (resultado)
+                    return Ok(new { mensaje = "Hogar registrado correctamente" });
+                else
+                    return BadRequest("No se pudo registrar el hogar.");
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { mensaje = ex.Message });
+            }
+        }
+
 
         [Authorize]
         [HttpGet("Hogares")]
@@ -82,48 +101,37 @@ namespace backendConsumoE.Controllers
             }
         }
 
-        // LISTAR electrodomésticos por hogar
+
         [HttpGet("zona-electro/hogar/{idHogar}")]
         public async Task<IActionResult> ObtenerZonaElectPorHogar(int idHogar)
         {
             try
             {
-                var lista = await _duenioCasaService.ObtenerZonaElectPorHogarAsync(idHogar);
-
-                if (lista == null || !lista.Any())
+                var resultado = await _duenioCasaService.ObtenerZonaElectPorHogarAsync(idHogar);
+                if (resultado == null || !resultado.Any())
                 {
-                    return Ok(new { mensaje = "No hay electrodomésticos registrados para este hogar.", datos = new List<ZonaElectDto>() });
+                    return NotFound(new { mensaje = "No hay electrodomésticos registrados para este hogar." });
                 }
-
-                return Ok(lista);
+                return Ok(resultado);
             }
             catch (Exception ex)
             {
-                return StatusCode(500, new { mensaje = "Error al obtener los electrodomésticos del hogar: " + ex.Message });
+                return StatusCode(500, new { mensaje = ex.Message });
             }
         }
 
         // ACTUALIZAR electrodoméstico
-        [HttpPut("zona-electro/{idZonaElectro}")]
-        public async Task<IActionResult> ActualizarZonaElectro(int idZonaElectro, [FromBody] ZonaElectroActualizarDto dto)
+        [HttpPut("zona-electro/{idZonaElect}")]
+        public async Task<IActionResult> ActualizarZonaElectro(int idZonaElect, [FromBody] ZonaElectroActualizarDto dto)
         {
             try
             {
-                if (idZonaElectro != dto.IdZonaElectro)
-                {
-                    return BadRequest(new { mensaje = "El ID en la ruta no coincide con el del cuerpo de la solicitud." });
-                }
-
-                var actualizado = await _duenioCasaService.ActualizarZonaElectroAsync(dto);
-
-                if (actualizado)
-                    return Ok(new { mensaje = "Electrodoméstico actualizado correctamente." });
-                else
-                    return NotFound(new { mensaje = "No se encontró el electrodoméstico para actualizar." });
+                await _duenioCasaService.ActualizarZonaElectroAsync(idZonaElect, dto);
+                return Ok(new { mensaje = "Registro actualizado correctamente." });
             }
             catch (Exception ex)
             {
-                return StatusCode(500, new { mensaje = "Error al actualizar el electrodoméstico: " + ex.Message });
+                return StatusCode(500, new { mensaje = ex.Message });
             }
         }
 
@@ -146,6 +154,61 @@ namespace backendConsumoE.Controllers
             }
         }
 
+        //[HttpPost("cambiar-estado")]
+        //public async Task<IActionResult> CambiarEstado([FromBody] CambioEstadoDto dto)
+        //{
+        //    if (dto == null)
+        //        return BadRequest("Datos inválidos");
+
+        //    try
+        //    {
+        //        await _duenioCasaService.CambiarEstadoElectrodomesticoAsync(dto);
+        //        return Ok(new { mensaje = "Estado actualizado correctamente." });
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        return StatusCode(500, new { mensaje = ex.Message });
+        //    }
+        //}
+        // POST: api/DuenioCasa/cambiar-estado
+        [HttpPost("cambiar-estado")]
+        public async Task<IActionResult> CambiarEstado([FromBody] CambioEstadoDto dto)
+        {
+            if (dto == null)
+                return BadRequest("Datos inválidos");
+
+            try
+            {
+                // Obtener el idUsuario desde el token (JWT)
+                var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+                if (string.IsNullOrEmpty(userIdClaim))
+                    return Unauthorized("No se pudo identificar al usuario.");
+
+                dto.IdUsuario = int.Parse(userIdClaim);
+
+                await _duenioCasaService.CambiarEstadoElectrodomesticoAsync(dto);
+                return Ok(new { mensaje = "Estado actualizado correctamente." });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { mensaje = ex.Message });
+            }
+        }
+        // GET: api/DuenioCasa/estado-actual/{idZonaElect}
+        [HttpGet("estado-actual/{idZonaElect}")]
+        public async Task<IActionResult> ObtenerEstadoActual(int idZonaElect)
+        {
+            try
+            {
+                var estado = await _duenioCasaService.ObtenerEstadoZonaElectAsync(idZonaElect);
+                return Ok(new { estado });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { mensaje = ex.Message });
+            }
+        }
 
     }
 }
