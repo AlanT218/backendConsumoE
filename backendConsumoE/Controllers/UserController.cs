@@ -1,11 +1,15 @@
 ﻿using backendConsumoE.Dtos;
 using backendConsumoE.Services;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
 namespace backendConsumoE.Controllers
 {
-    public class UserController : Controller
+    [ApiController]
+    [Route("api/[controller]")]
+    public class UserController : ControllerBase
     {
         private readonly UserService _userService;
 
@@ -14,134 +18,115 @@ namespace backendConsumoE.Controllers
             _userService = userService;
         }
 
+        [Authorize]
         [HttpGet("ObtenerUsuarios")]
         public async Task<IActionResult> ObtenerUsuarios()
         {
-            var usuarios = await _userService.ObtenerUsuario();
-            return Ok(usuarios);
-        }
-
-        //[HttpPost("RegistrarUsuario")]
-        //public async Task<IActionResult> RegistrarUsuario([FromBody] UserDto usuario)
-        //{
-        //    if (usuario == null)
-        //        return BadRequest("Datos inválidos");
-
-        //    await _userService.RegistrarUsuario(usuario);
-        //    return Ok("Usuario registrado correctamente");
-        //}
-
-        [HttpPost("RegistrarDueñoCasa")]
-        public IActionResult RegistrarUsuario([FromBody] UserDto usuario)
-        {
             try
             {
-                if (usuario == null)
-                {
-                    return BadRequest("El usuario no puede ser nulo.");
-                }
-
-                _userService.RegistrarUsuario(usuario);
-
-                return Ok(new { mensaje = "Usuario registrado correctamente." });
-            }
-            catch (ArgumentException ex)
-            {
-                return BadRequest(new { error = ex.Message });
+                var usuarios = await _userService.ObtenerUsuarios();
+                return Ok(usuarios);
             }
             catch (Exception ex)
             {
-                return StatusCode(500, new { error = "Error interno del servidor: " + ex.Message });
+                return StatusCode(500, new { message = ex.Message });
             }
         }
 
-        [HttpPost("login")]
-        public async Task<IActionResult> Login([FromBody] UserDto usuario)
+        [HttpPost("InicioSesion")]
+        [AllowAnonymous]
+        public async Task<IActionResult> PostIniciarSesion([FromBody] RequestInicioSesionDto requestInicioSesionDto)
         {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
             try
             {
-                if (usuario == null)
-                {
-                    return BadRequest("El usuario no puede ser nulo.");
-                }
-
-                UserDto userResult = await _userService.Login(usuario);
-
-                return Ok(new { mensaje = userResult.Mensaje });
-            }
-            catch (ArgumentException ex)
-            {
-                return BadRequest(new { error = ex.Message });
+                var resultado = await _userService.InicioSesion(requestInicioSesionDto);
+                return Ok(resultado);
             }
             catch (Exception ex)
             {
-                return StatusCode(500, new { error = "Error interno del servidor: " + ex.Message });
+                return StatusCode(500, new { message = ex.Message });
             }
         }
 
-
-
-        // GET: UserController
-        public ActionResult Index()
+        [HttpPost("CrearUsuario")]
+        [AllowAnonymous]
+        public async Task<IActionResult> CrearUsuarios([FromBody] RequestUserDto requestUserDto)
         {
-            return View();
-        }
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
 
-        // GET: UserController/Details/5
-        public ActionResult Details(int id)
-        {
-            return View();
-        }
-
-        // GET: UserController/Create
-        public ActionResult Create()
-        {
-            return View();
-        }
-
-        
-    
-
-        // GET: UserController/Edit/5
-        public ActionResult Edit(int id)
-        {
-            return View();
-        }
-
-        // POST: UserController/Edit/5
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public ActionResult Edit(int id, IFormCollection collection)
-        {
             try
             {
-                return RedirectToAction(nameof(Index));
+                ResponseGeneralDto response = await _userService.CrearUsuario(requestUserDto);
+                return Ok(response);
             }
-            catch
+            catch (Exception ex)
             {
-                return View();
+                return StatusCode(500, new { message = ex.Message });
             }
         }
 
-        // GET: UserController/Delete/5
-        public ActionResult Delete(int id)
-        {
-            return View();
-        }
-
-        // POST: UserController/Delete/5
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public ActionResult Delete(int id, IFormCollection collection)
-        {
-            try
-            {
-                return RedirectToAction(nameof(Index));
-            }
-            catch
-            {
-                return View();
-            }
-        }
     }
 }
+//[HttpPost("RegistrarUsuario")]
+//public async Task<IActionResult> RegistrarUsuario([FromBody] UserDto usuario)
+//{
+//    if (usuario == null)
+//        return BadRequest("Datos inválidos");
+
+//    await _userService.RegistrarUsuario(usuario);
+//    return Ok("Usuario registrado correctamente");
+//}
+
+//[HttpPost("Registrar")]
+//public IActionResult CrearUsuario([FromBody] UserDto usuario)
+//{
+//    try
+//    {
+//        if (usuario == null)
+//        {
+//            return BadRequest("El usuario no puede ser nulo.");
+//        }
+
+//        _userService.CrearUsuario(usuario);
+
+//        return Ok(new { mensaje = "Usuario registrado correctamente." });
+//    }
+//    catch (ArgumentException ex)
+//    {
+//        return BadRequest(new { error = ex.Message });
+//    }
+//    catch (Exception ex)
+//    {
+//        return StatusCode(500, new { error = "Error interno del servidor: " + ex.Message });
+//    }
+//}
+
+//[HttpPost("login")]
+//public async Task<IActionResult> Login([FromBody] UserDto usuario)
+//{
+//    try
+//    {
+//        if (usuario == null)
+//        {
+//            return BadRequest("El usuario no puede ser nulo.");
+//        }
+
+//        UserDto userResult = await _userService.Login(usuario);
+
+//        return Ok(new { mensaje = userResult.Mensaje });
+//    }
+//    catch (ArgumentException ex)
+//    {
+//        return BadRequest(new { error = ex.Message });
+//    }
+//    catch (Exception ex)
+//    {
+//        return StatusCode(500, new { error = "Error interno del servidor: " + ex.Message });
+//    }
+//}
+
+
