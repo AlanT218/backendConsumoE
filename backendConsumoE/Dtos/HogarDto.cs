@@ -2,10 +2,12 @@
 {
     public class HogarDto
     {
-        public int Id { get; set; }
-        public string Nombre { get; set; }
-        public string NombreTipo { get; set; } // Nuevo nombre descriptivo de la categoría
-        public int IdUsuario { get; set; }
-        public int IdTipo { get; set; } // Si también quieres enviar el ID del tipo
+        public int Id { get; set; } // Id del hogar
+        public string Nombre { get; set; } // Nombre del hogar
+        public int IdUsuario { get; set; } // Usuario que lo registra
+
+        public int IdTipo { get; set; } // FK al tipo de hogar
+        public string NombreTipo { get; set; } // Nombre del tipo de hogar (para lectura)
     }
+
 }

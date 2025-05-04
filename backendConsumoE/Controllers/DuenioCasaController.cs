@@ -16,22 +16,43 @@ namespace backendConsumoE.Controllers
         {
             _duenioCasaService = duenioCasaService;
         }
-        
-        
-        [HttpPost("registrar-hogar")]
-        public async Task<IActionResult> RegistrarHogar([FromBody] HogarDto dto)
+        [HttpGet("tipos-hogar")]
+        public async Task<IActionResult> ObtenerTiposHogar()
         {
             try
             {
-                var resultado = await _duenioCasaService.RegistrarHogar(dto);
-                if (resultado)
-                    return Ok(new { mensaje = "Hogar registrado correctamente" });
-                else
-                    return BadRequest("No se pudo registrar el hogar.");
+                var tipos = await _duenioCasaService.ObtenerTiposHogar();
+                return Ok(tipos);
             }
             catch (Exception ex)
             {
-                return StatusCode(500, new { mensaje = ex.Message });
+                return StatusCode(500, $"Error al obtener tipos de hogar: {ex.Message}");
+            }
+        }
+
+
+        [HttpPost("registrar-hogar")]
+        [Authorize]
+        public async Task<IActionResult> RegistrarHogar([FromBody] RegistrarHogarDto dto)
+        {
+            if (dto == null || string.IsNullOrWhiteSpace(dto.Nombre) || dto.IdTipo <= 0)
+                return BadRequest(new { mensaje = "Todos los campos son obligatorios." });
+
+            // Extraer idUsuario de la claim NameIdentifier
+            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userIdClaim))
+                return Unauthorized("No se pudo identificar al usuario.");
+
+            dto.IdUsuario = int.Parse(userIdClaim);
+
+            try
+            {
+                var idNuevoHogar = await _duenioCasaService.RegistrarHogarAsync(dto);
+                return Ok(new { mensaje = "Hogar registrado exitosamente", idHogar = idNuevoHogar });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { mensaje = "Error al registrar el hogar: " + ex.Message });
             }
         }
 
@@ -153,23 +174,7 @@ namespace backendConsumoE.Controllers
                 return StatusCode(500, new { mensaje = "Error al eliminar el electrodoméstico: " + ex.Message });
             }
         }
-
-        //[HttpPost("cambiar-estado")]
-        //public async Task<IActionResult> CambiarEstado([FromBody] CambioEstadoDto dto)
-        //{
-        //    if (dto == null)
-        //        return BadRequest("Datos inválidos");
-
-        //    try
-        //    {
-        //        await _duenioCasaService.CambiarEstadoElectrodomesticoAsync(dto);
-        //        return Ok(new { mensaje = "Estado actualizado correctamente." });
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        return StatusCode(500, new { mensaje = ex.Message });
-        //    }
-        //}
+        
         // POST: api/DuenioCasa/cambiar-estado
         [HttpPost("cambiar-estado")]
         public async Task<IActionResult> CambiarEstado([FromBody] CambioEstadoDto dto)

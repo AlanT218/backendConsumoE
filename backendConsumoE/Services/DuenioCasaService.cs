@@ -12,18 +12,19 @@ namespace backendConsumoE.Services
         {
             _duenioCasaRepository = duenioCasaRepository;
         }
-        public async Task<bool> RegistrarHogar(HogarDto dto)
+        public async Task<List<HogarDto>> ObtenerTiposHogar()
         {
-            if (string.IsNullOrWhiteSpace(dto.Nombre))
-                throw new ArgumentException("El nombre del hogar no puede estar vacío.");
+            return await _duenioCasaRepository.ObtenerTiposHogar();
+        }
 
-            if (dto.IdTipo <= 0)
-                throw new ArgumentException("Debe especificar un tipo válido de hogar.");
+        public async Task<int> RegistrarHogarAsync(RegistrarHogarDto dto)
+        {
+            if (dto == null || string.IsNullOrWhiteSpace(dto.Nombre) || dto.IdTipo <= 0 || dto.IdUsuario <= 0)
+            {
+                throw new ArgumentException("Datos inválidos para el registro del hogar.");
+            }
 
-            if (dto.IdUsuario <= 0)
-                throw new ArgumentException("Debe especificar un usuario válido.");
-
-            return await _duenioCasaRepository.RegistrarHogar(dto);
+            return await _duenioCasaRepository.RegistrarHogarAsync(dto);
         }
 
         public async Task<List<HogarDto>> ObtenerHogaresPorUsuario(int idUsuario)
