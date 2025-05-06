@@ -12,6 +12,11 @@ namespace backendConsumoE.Services
         {
             _duenioCasaRepository = duenioCasaRepository;
         }
+        public async Task<List<HogarDto>> ObtenerTiposHogar()
+        {
+            return await _duenioCasaRepository.ObtenerTiposHogar();
+        }
+
         public async Task<bool> RegistrarHogar(HogarDto dto)
         {
             if (string.IsNullOrWhiteSpace(dto.Nombre))
@@ -111,6 +116,10 @@ namespace backendConsumoE.Services
             return await _duenioCasaRepository.ObtenerEstadoZonaElectAsync(idZonaElect);
         }
 
+        public List<ConsumoReporteDto> ObtenerDatosReporteConsumo(int idHogar)
+        {
+            return _duenioCasaRepository.ObtenerDatosReporteConsumo(idHogar);
+        }
 
     }
 }
