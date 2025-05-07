@@ -16,6 +16,34 @@ namespace backendConsumoE.Repositories
         {
             _dbContextUtility = dbContextUtility ?? throw new ArgumentNullException(nameof(dbContextUtility));
         }
+        public async Task<List<HogarDto>> ObtenerTiposHogar()
+        {
+            var tipos = new List<HogarDto>();
+            const string sql = "SELECT id_tipo, nombre_tipo FROM TIPO_HOGAR";
+
+            try
+            {
+                using var connection = _dbContextUtility.GetOpenConnection();
+                using var command = new SqlCommand(sql, connection);
+                using var reader = await command.ExecuteReaderAsync();
+
+                while (await reader.ReadAsync())
+                {
+                    tipos.Add(new HogarDto
+                    {
+                        IdTipo = reader.GetInt32(0),
+                        NombreTipo = reader.GetString(1)
+                    });
+                }
+            }
+            catch (Exception ex)
+            {
+                throw new Exception("Error al obtener los tipos de hogar: " + ex.Message);
+            }
+
+            return tipos;
+        }
+
         public async Task<bool> RegistrarHogar(HogarDto dto)
         {
             const string sqlInsertHogar = @"
@@ -352,6 +380,71 @@ namespace backendConsumoE.Repositories
 
             return (bool)result;
         }
+        public List<ConsumoReporteDto> ObtenerDatosReporteConsumo(int idHogar)
+        {
+            const string sql = @"
+        SELECT 
+            z.Nombre                AS NombreZona,
+            e.Nombre                AS NombreElectrodomestico,
+            ze.Consumo              AS Consumo,
+            SUM(DATEDIFF(SECOND, c.fecha_inicio, c.fecha_fin) / 3600.0 * ze.Consumo) AS ConsumoWh
+        FROM ZONA_ELECT ze
+        INNER JOIN CONSUMO c 
+            ON ze.id_zona_elect = c.id_zona_elect
+        INNER JOIN ZONA z 
+            ON ze.id_zona = z.id_zona
+        INNER JOIN ELECTRODOMESTICO e 
+            ON ze.id_electro = e.id_electro
+        WHERE ze.id_hogar = @idHogar
+          AND c.fecha_fin IS NOT NULL
+        GROUP BY z.Nombre, e.Nombre, ze.Consumo;
+        ";
 
+            var result = new List<ConsumoReporteDto>();
+
+            using var connection = _dbContextUtility.GetOpenConnection();
+            using var cmd = new SqlCommand(sql, connection);
+            cmd.Parameters.AddWithValue("@idHogar", idHogar);
+
+            using var reader = cmd.ExecuteReader();
+            while (reader.Read())
+            {
+                result.Add(new ConsumoReporteDto
+                {
+                    NombreZona = reader.GetString(0),
+                    NombreElectrodomestico = reader.GetString(1),
+                    Consumo = reader.GetDouble(2),
+                    ConsumoWh = reader.GetDouble(3)
+                });
+            }
+
+            return result;
+        }
+        public async Task<List<RecomendacionDto>> ObtenerTodasRecomendacionesAsync()
+        {
+            const string sql = @"
+            SELECT r.id_recomendacion AS IdRecomendacion,
+                   e.nombre          AS NombreElectro,
+                   r.texto           AS Texto
+            FROM RECOMENDACION r
+            INNER JOIN ELECTRODOMESTICO e ON r.id_electro = e.id_electro
+            ORDER BY e.nombre;";
+
+            var lista = new List<RecomendacionDto>();
+            using var connection = _dbContextUtility.GetOpenConnection();
+            using var cmd = new SqlCommand(sql, connection);
+
+            using var reader = await cmd.ExecuteReaderAsync();
+            while (await reader.ReadAsync())
+            {
+                lista.Add(new RecomendacionDto
+                {
+                    IdRecomendacion = reader.GetInt32(0),
+                    NombreElectro = reader.GetString(1),
+                    Texto = reader.GetString(2)
+                });
+            }
+            return lista;
+        }
     }
 }
