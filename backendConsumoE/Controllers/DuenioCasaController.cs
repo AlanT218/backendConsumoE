@@ -249,7 +249,19 @@ namespace backendConsumoE.Controllers
 
             return File(pdfBytes, "application/pdf", $"ReporteConsumo_{DateTime.Now:yyyyMMdd_HHmmss}.pdf");
         }
-        
 
+        [HttpGet("recomendaciones")]
+        public async Task<IActionResult> ObtenerTodasRecomendaciones()
+        {
+            try
+            {
+                var lista = await _duenioCasaService.ObtenerTodasRecomendacionesAsync();
+                return Ok(lista);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { mensaje = ex.Message });
+            }
+        }
     }
 }

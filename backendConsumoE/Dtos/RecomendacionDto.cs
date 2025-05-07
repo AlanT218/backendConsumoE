@@ -1,6 +1,6 @@
 ﻿namespace backendConsumoE.Dtos
 {
-    public class RecomendacionHogarDto
+    public class RecomendacionDto
     {
         public int IdRecomendacion { get; set; }
         public string NombreElectro { get; set; }

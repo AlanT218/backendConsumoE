@@ -120,6 +120,9 @@ namespace backendConsumoE.Services
         {
             return _duenioCasaRepository.ObtenerDatosReporteConsumo(idHogar);
         }
-
+        public async Task<List<RecomendacionDto>> ObtenerTodasRecomendacionesAsync()
+        {
+            return await _duenioCasaRepository.ObtenerTodasRecomendacionesAsync();
+        }
     }
 }

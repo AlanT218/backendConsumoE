@@ -420,6 +420,31 @@ namespace backendConsumoE.Repositories
 
             return result;
         }
+        public async Task<List<RecomendacionDto>> ObtenerTodasRecomendacionesAsync()
+        {
+            const string sql = @"
+            SELECT r.id_recomendacion AS IdRecomendacion,
+                   e.nombre          AS NombreElectro,
+                   r.texto           AS Texto
+            FROM RECOMENDACION r
+            INNER JOIN ELECTRODOMESTICO e ON r.id_electro = e.id_electro
+            ORDER BY e.nombre;";
 
+            var lista = new List<RecomendacionDto>();
+            using var connection = _dbContextUtility.GetOpenConnection();
+            using var cmd = new SqlCommand(sql, connection);
+
+            using var reader = await cmd.ExecuteReaderAsync();
+            while (await reader.ReadAsync())
+            {
+                lista.Add(new RecomendacionDto
+                {
+                    IdRecomendacion = reader.GetInt32(0),
+                    NombreElectro = reader.GetString(1),
+                    Texto = reader.GetString(2)
+                });
+            }
+            return lista;
+        }
     }
 }
