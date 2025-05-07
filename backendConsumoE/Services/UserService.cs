@@ -42,32 +42,13 @@ namespace backendConsumoE.Services
 
             return response;
         }
+
         public async Task<ResponseGeneralDto> CrearUsuario(RequestUserDto requestUserDto)
         {
             var response = new ResponseGeneralDto();
             requestUserDto.Contra = EncryptUtility.EncryptPassword(requestUserDto.Contra);
 
             var filasAfectadas = await _userRepository.RegistrarUsuario(requestUserDto);
-
-            if (filasAfectadas > 0)
-            {
-                // Enviar correo solo si se creó correctamente
-                try
-                {
-                    var emailUtility = new EmailConfigUtility();
-                    emailUtility.EnviarCorreo(
-                        requestUserDto.Correo,
-                        "Bienvenido al sistema",
-                        1, // tipo plantilla bienvenida
-                        requestUserDto.Nombre
-                    );
-                }
-                catch (Exception ex)
-                {
-                    // loguear pero no detener la ejecución por fallo de correo
-                    Console.WriteLine("Error al enviar correo de bienvenida: " + ex.Message);
-                }
-            }
 
             response.Respuesta = filasAfectadas > 0 ? 1 : 0;
             response.Mensaje = filasAfectadas > 0
@@ -76,21 +57,6 @@ namespace backendConsumoE.Services
 
             return response;
         }
-
-        //public async Task<ResponseGeneralDto> CrearUsuario(RequestUserDto requestUserDto)
-        //{
-        //    var response = new ResponseGeneralDto();
-        //    requestUserDto.Contra = EncryptUtility.EncryptPassword(requestUserDto.Contra);
-
-        //    var filasAfectadas = await _userRepository.RegistrarUsuario(requestUserDto);
-
-        //    response.Respuesta = filasAfectadas > 0 ? 1 : 0;
-        //    response.Mensaje = filasAfectadas > 0
-        //        ? "Usuario creado exitosamente."
-        //        : "Algo pasó al registrar el usuario.";
-
-        //    return response;
-        //}
     }
 }
 
