@@ -47,13 +47,14 @@ namespace backendConsumoE.Repositories
         public async Task<bool> RegistrarHogar(HogarDto dto)
         {
             const string sqlInsertHogar = @"
+        
         INSERT INTO HOGAR (nombre, id_tipo) 
         OUTPUT INSERTED.id_hogar
         VALUES (@nombre, @idTipo);";
 
             const string sqlInsertUsuHogar = @"
-        INSERT INTO USU_HOGAR (id_usuario, id_hogar)
-        VALUES (@idUsuario, @idHogar);";
+        INSERT INTO USU_HOGAR (id_usuario, id_hogar, id_rol)
+VALUES (@idUsuario, @idHogar, 1)";
 
             try
             {
@@ -92,11 +93,36 @@ namespace backendConsumoE.Repositories
             var hogares = new List<HogarDto>();
 
             const string sql = @"
-    SELECT H.id_hogar, H.nombre, TH.nombre_tipo, UH.id_usuario, H.id_tipo
-    FROM HOGAR H
-    INNER JOIN USU_HOGAR UH ON UH.id_hogar = H.id_hogar
-    INNER JOIN TIPO_HOGAR TH ON H.id_tipo = TH.id_tipo
-    WHERE UH.id_usuario = @idUsuario";
+            SELECT 
+                H.id_hogar,
+                H.nombre,
+                TH.nombre_tipo      AS NombreTipo,
+                UH.id_usuario,
+                H.id_tipo           AS IdTipo,
+                UH.id_rol           AS IdRol,
+                R.nombre            AS NombreRol
+            FROM HOGAR H
+            INNER JOIN USU_HOGAR UH 
+                ON UH.id_hogar = H.id_hogar
+            INNER JOIN TIPO_HOGAR TH 
+                ON H.id_tipo = TH.id_tipo
+            INNER JOIN ROL R 
+                ON UH.id_rol = R.id_rol
+            -- unimos invitación para invitados (rol=3)
+            LEFT JOIN INVITACION I 
+                ON I.id_hogar    = UH.id_hogar
+               AND I.id_invitado = UH.id_usuario
+               AND I.id_rol      = UH.id_rol
+               AND I.estado      = 'Aceptada'
+            WHERE UH.id_usuario = @idUsuario
+              AND (
+                    UH.id_rol <> 3
+                 OR (UH.id_rol = 3 
+                     AND I.id IS NOT NULL 
+                     AND I.fecha_expiracion > GETDATE()
+                    )
+                  )
+            ";
 
             try
             {
@@ -113,13 +139,15 @@ namespace backendConsumoE.Repositories
                         Nombre = reader.GetString(1),
                         NombreTipo = reader.GetString(2),
                         IdUsuario = reader.GetInt32(3),
-                        IdTipo = reader.GetInt32(4)
+                        IdTipo = reader.GetInt32(4),
+                        IdRol = reader.GetInt32(5),
+                        NombreRol = reader.GetString(6)
                     });
                 }
             }
             catch (Exception ex)
             {
-                throw new Exception("Error al obtener los hogares: " + ex.Message);
+                throw new Exception("Error al obtener los hogares: " + ex.Message, ex);
             }
 
             return hogares;
