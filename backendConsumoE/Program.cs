@@ -65,6 +65,9 @@ builder.Services.AddScoped<UserRepository>();
 builder.Services.AddScoped<DbContextUtility>();
 builder.Services.AddScoped<DuenioCasaService>();
 builder.Services.AddScoped<DuenioCasaRepository>();
+builder.Services.AddScoped<InvitacionRepository>();
+builder.Services.AddScoped<InvitacionService>();
+
 
 
 // Configuración Swagger
