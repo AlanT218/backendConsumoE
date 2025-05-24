@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 
 namespace backendConsumoE.Repositories
 {
-    public class DuenioCasaRepository
+        public class DuenioCasaRepository
     {
         private readonly DbContextUtility _dbContextUtility;
 

@@ -7,7 +7,7 @@ using backendConsumoE.Utilities;
 
 namespace backendConsumoE.Controllers
 {
-    [ApiController]
+        [ApiController]
     [Route("api/[controller]")]
     public class DuenioCasaController : ControllerBase
     {
