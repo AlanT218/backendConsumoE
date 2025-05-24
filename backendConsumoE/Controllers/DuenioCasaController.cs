@@ -18,6 +18,10 @@ namespace backendConsumoE.Controllers
             _duenioCasaService = duenioCasaService;
         }
 
+        /// <summary>
+        /// Obtiene la lista de tipos de hogar disponibles para registrar un hogar.
+        /// </summary>
+        [Authorize]
         [HttpGet("tipos-hogar")]
         public async Task<IActionResult> ObtenerTiposHogar()
         {
@@ -32,6 +36,10 @@ namespace backendConsumoE.Controllers
             }
         }
 
+        /// <summary>
+        /// Obtiene la lista de tipos de hogar disponibles para registrar un hogar.
+        /// </summary>
+        [Authorize]
         [HttpPost("registrar-hogar")]
         public async Task<IActionResult> RegistrarHogar([FromBody] HogarDto dto)
         {
@@ -63,6 +71,9 @@ namespace backendConsumoE.Controllers
             }
         }
 
+        /// <summary>
+        /// Obtiene todos los hogares registrados por el usuario autenticado.
+        /// </summary>
         [Authorize]
         [HttpGet("Hogares")]
         public async Task<IActionResult> ObtenerHogares()
@@ -83,7 +94,10 @@ namespace backendConsumoE.Controllers
             }
         }
 
-        //[Authorize]
+        /// <summary>
+        /// Obtiene la lista de zonas disponibles en el sistema.
+        /// </summary>
+        [Authorize]
         [HttpGet("zonas")]
         public async Task<IActionResult> ObtenerZonas()
         {
@@ -98,7 +112,10 @@ namespace backendConsumoE.Controllers
             }
         }
 
-        //[Authorize]
+        /// <summary>
+        /// Devuelve la lista de electrodomésticos registrados por el dueño de casa.
+        /// </summary>
+        [Authorize]
         [HttpGet("electrodomesticos")]
         public async Task<IActionResult> ObtenerElectrodomesticos()
         {
@@ -113,7 +130,11 @@ namespace backendConsumoE.Controllers
             }
         }
 
-        //[Authorize]
+
+        /// <summary>
+        /// Agrega un nuevo electrodoméstico a una zona específica.
+        /// </summary>
+        [Authorize]
         [HttpPost("zona-electro")]
         public async Task<IActionResult> AgregarZonaElectro([FromBody] ZonaElectDto nuevaZonaElect)
         {
@@ -128,7 +149,10 @@ namespace backendConsumoE.Controllers
             }
         }
 
-
+        /// <summary>
+        /// Obtiene los electrodomésticos asignados a un hogar específico.
+        /// </summary>
+        [Authorize]
         [HttpGet("zona-electro/hogar/{idHogar}")]
         public async Task<IActionResult> ObtenerZonaElectPorHogar(int idHogar)
         {
@@ -147,7 +171,10 @@ namespace backendConsumoE.Controllers
             }
         }
 
-        // ACTUALIZAR electrodoméstico
+        /// <summary>
+        /// Actualiza los datos de un electrodoméstico asignado a una zona.
+        /// </summary>
+        [Authorize]
         [HttpPut("zona-electro/{idZonaElect}")]
         public async Task<IActionResult> ActualizarZonaElectro(int idZonaElect, [FromBody] ZonaElectroActualizarDto dto)
         {
@@ -162,7 +189,10 @@ namespace backendConsumoE.Controllers
             }
         }
 
-        // ELIMINAR electrodoméstico
+        /// <summary>
+        /// Cambia el estado de un electrodoméstico de una zona específica a inactivo.
+        /// </summary>
+        [Authorize]
         [HttpDelete("zona-electro/{idZonaElect}")]
         public async Task<IActionResult> EliminarZonaElect(int idZonaElect)
         {
@@ -181,23 +211,10 @@ namespace backendConsumoE.Controllers
             }
         }
 
-        //[HttpPost("cambiar-estado")]
-        //public async Task<IActionResult> CambiarEstado([FromBody] CambioEstadoDto dto)
-        //{
-        //    if (dto == null)
-        //        return BadRequest("Datos inválidos");
-
-        //    try
-        //    {
-        //        await _duenioCasaService.CambiarEstadoElectrodomesticoAsync(dto);
-        //        return Ok(new { mensaje = "Estado actualizado correctamente." });
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        return StatusCode(500, new { mensaje = ex.Message });
-        //    }
-        //}
-        // POST: api/DuenioCasa/cambiar-estado
+        /// <summary>
+        /// Cambia el estado (encendido/apagado) de un electrodoméstico.
+        /// </summary>
+        [Authorize]
         [HttpPost("cambiar-estado")]
         public async Task<IActionResult> CambiarEstado([FromBody] CambioEstadoDto dto)
         {
@@ -222,7 +239,11 @@ namespace backendConsumoE.Controllers
                 return StatusCode(500, new { mensaje = ex.Message });
             }
         }
-        // GET: api/DuenioCasa/estado-actual/{idZonaElect}
+
+        /// <summary>
+        /// Obtiene el estado actual (encendido o apagado) de un electrodoméstico asignado a una zona.
+        /// </summary>
+        [Authorize]
         [HttpGet("estado-actual/{idZonaElect}")]
         public async Task<IActionResult> ObtenerEstadoActual(int idZonaElect)
         {
@@ -237,6 +258,10 @@ namespace backendConsumoE.Controllers
             }
         }
 
+        /// <summary>
+        /// Genera un reporte en PDF con el consumo energético de un hogar.
+        /// </summary>
+        [Authorize]
         [HttpGet("generar-reporte-pdf/{idHogar}")]
         public IActionResult GenerarReportePdf(int idHogar)
         {
@@ -250,6 +275,10 @@ namespace backendConsumoE.Controllers
             return File(pdfBytes, "application/pdf", $"ReporteConsumo_{DateTime.Now:yyyyMMdd_HHmmss}.pdf");
         }
 
+        /// <summary>
+        /// Devuelve la lista de recomendaciones energéticas disponibles.
+        /// </summary>
+        [Authorize]
         [HttpGet("recomendaciones")]
         public async Task<IActionResult> ObtenerTodasRecomendaciones()
         {

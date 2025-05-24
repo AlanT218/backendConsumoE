@@ -8,13 +8,15 @@ namespace backendConsumoE.Services
     {
         private readonly JwtSettingsDto _jwtSettings;
         private readonly UserRepository _userRepository;
+        private readonly EmailConfigUtility _emailUtility; 
 
-        public UserService(UserRepository userRepository, JwtSettingsDto jwtSettings)
+        public UserService(UserRepository userRepository, JwtSettingsDto jwtSettings, EmailConfigUtility emailConfigUtility)
         {
             _userRepository = userRepository;
             _jwtSettings = jwtSettings;
+            _emailUtility = emailConfigUtility;
         }
-
+        
         public async Task<List<UserDto>> ObtenerUsuarios()
         {
             return await _userRepository.ObtenerUsuarios();
@@ -42,37 +44,53 @@ namespace backendConsumoE.Services
 
             return response;
         }
+
         public async Task<ResponseGeneralDto> CrearUsuario(RequestUserDto requestUserDto)
         {
             var response = new ResponseGeneralDto();
+
+            if (string.IsNullOrWhiteSpace(requestUserDto.Correo) || string.IsNullOrWhiteSpace(requestUserDto.Contra))
+            {
+                response.Respuesta = 0;
+                response.Mensaje = "Correo o contraseña inválidos.";
+                return response;
+            }
+
+            // Verificar si el correo ya está registrado
+            var correoYaExiste = await _userRepository.CorreoExiste(requestUserDto.Correo);
+            if (correoYaExiste)
+            {
+                response.Respuesta = 0;
+                response.Mensaje = "El correo ya está registrado.";
+                return response;
+            }
+
+            // Encriptar contraseña
             requestUserDto.Contra = EncryptUtility.EncryptPassword(requestUserDto.Contra);
 
-            var filasAfectadas = await _userRepository.RegistrarUsuario(requestUserDto);
+            var filasAfectadas = await _userRepository.RegistrarUsuario(requestUserDto).ConfigureAwait(false);
 
             if (filasAfectadas > 0)
             {
-                // Enviar correo solo si se creó correctamente
                 try
                 {
-                    var emailUtility = new EmailConfigUtility();
-                    emailUtility.EnviarCorreo(
+                    _emailUtility.EnviarCorreo(
                         requestUserDto.Correo,
                         "Bienvenido al sistema",
-                        1, // tipo plantilla bienvenida
-                        requestUserDto.Nombre
+                        1,
+                        requestUserDto.Nombre ?? "Usuario"
                     );
                 }
                 catch (Exception ex)
                 {
-                    // loguear pero no detener la ejecución por fallo de correo
-                    Console.WriteLine("Error al enviar correo de bienvenida: " + ex.Message);
+                    Console.WriteLine($"[ERROR] Fallo al enviar el correo de bienvenida: {ex.Message}");
                 }
             }
 
             response.Respuesta = filasAfectadas > 0 ? 1 : 0;
             response.Mensaje = filasAfectadas > 0
                 ? "Usuario creado exitosamente."
-                : "Algo pasó al registrar el usuario.";
+                : "Algo salió mal al registrar el usuario.";
 
             return response;
         }

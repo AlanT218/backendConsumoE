@@ -79,6 +79,18 @@ namespace backendConsumoE.Repositories
                     throw new Exception("Error al registrar el usuario en la base de datos: " + ex.Message);
                 }
             }
+        public async Task<bool> CorreoExiste(string correo)
+        {
+            const string sql = "SELECT COUNT(1) FROM [bdGestion].[dbo].[usuario] WHERE correo = @Correo";
+
+            using var connection = _dbContextUtility.GetOpenConnection();
+            using var command = new SqlCommand(sql, connection);
+
+            command.Parameters.AddWithValue("@Correo", correo);
+
+            var result = (int)await command.ExecuteScalarAsync();
+            return result > 0;
+        }
 
         public async Task<UserDto> Login(RequestInicioSesionDto request)
         {

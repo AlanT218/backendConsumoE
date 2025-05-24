@@ -18,21 +18,10 @@ namespace backendConsumoE.Controllers
             _userService = userService;
         }
 
-        [Authorize]
-        [HttpGet("ObtenerUsuarios")]
-        public async Task<IActionResult> ObtenerUsuarios()
-        {
-            try
-            {
-                var usuarios = await _userService.ObtenerUsuarios();
-                return Ok(usuarios);
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, new { message = ex.Message });
-            }
-        }
-
+        
+        /// <summary>
+        /// Inicia sesión para un usuario mediante correo y contraseña.
+        /// </summary>
         [HttpPost("InicioSesion")]
         [AllowAnonymous]
         public async Task<IActionResult> PostIniciarSesion([FromBody] RequestInicioSesionDto requestInicioSesionDto)
@@ -51,6 +40,9 @@ namespace backendConsumoE.Controllers
             }
         }
 
+        /// <summary>
+        /// Permite al usario registrarse en el sistema.
+        /// </summary>
         [HttpPost("CrearUsuario")]
         [AllowAnonymous]
         public async Task<IActionResult> CrearUsuarios([FromBody] RequestUserDto requestUserDto)
@@ -71,6 +63,22 @@ namespace backendConsumoE.Controllers
 
     }
 }
+
+//[Authorize]
+//[HttpGet("ObtenerUsuarios")]
+//public async Task<IActionResult> ObtenerUsuarios()
+//{
+//    try
+//    {
+//        var usuarios = await _userService.ObtenerUsuarios();
+//        return Ok(usuarios);
+//    }
+//    catch (Exception ex)
+//    {
+//        return StatusCode(500, new { message = ex.Message });
+//    }
+//}
+
 //[HttpPost("RegistrarUsuario")]
 //public async Task<IActionResult> RegistrarUsuario([FromBody] UserDto usuario)
 //{
