@@ -19,18 +19,14 @@ namespace backendConsumoE.Utilities
         }
 
         private readonly ProviderSettings _gmailSettings;
-        private readonly ProviderSettings _outlookSettings;
         private readonly IWebHostEnvironment _env;
 
         public EmailConfigUtility(IConfiguration config, IWebHostEnvironment env)
         {
             _env = env ?? throw new ArgumentNullException(nameof(env));
 
-            // Cargar configuraciones de gmail y outlook desde appsettings.json
             _gmailSettings = config.GetSection("EmailSettings:Gmail").Get<ProviderSettings>()
                                ?? throw new ArgumentException("Faltan las configuraciones de Gmail en appsettings.json");
-            _outlookSettings = config.GetSection("EmailSettings:Outlook").Get<ProviderSettings>()
-                                 ?? throw new ArgumentException("Faltan las configuraciones de Outlook en appsettings.json");
         }
 
         public void EnviarCorreo(string destinatario, string asunto, int templateType, string nombre)
@@ -38,26 +34,27 @@ namespace backendConsumoE.Utilities
             if (string.IsNullOrWhiteSpace(destinatario) || !EsCorreoValido(destinatario))
                 throw new ArgumentException("El correo proporcionado no es válido.");
 
-            // Elegir proveedor: si destinatario institucional, usar Outlook, si no Gmail
-            bool esInstitucional = destinatario.EndsWith("@ucundinamarca.edu.co", StringComparison.OrdinalIgnoreCase);
-            var settings = esInstitucional ? _outlookSettings : _gmailSettings;
-
             string cuerpoHtml = ObtenerPlantilla(templateType, nombre);
+
             using var message = new MailMessage()
             {
-                From = new MailAddress(settings.User, "Opti Energy"),
+                From = new MailAddress(_gmailSettings.User, "Opti Energy"),
                 Subject = asunto,
                 IsBodyHtml = true,
                 Body = cuerpoHtml,
                 Priority = MailPriority.High
             };
+
             message.To.Add(destinatario);
+
+            // Cabeceras para prioridad alta
             message.Headers.Add("X-Priority", "1");
             message.Headers.Add("X-MSMail-Priority", "High");
             message.Headers.Add("Importance", "High");
 
-            // Imagen embebida
+            // Ruta absoluta de la imagen embebida
             string logoPath = MapPath("~/Imagenes/LogoGestion.png");
+
             if (!File.Exists(logoPath))
                 throw new FileNotFoundException("No se encontró la imagen del logo.", logoPath);
 
@@ -70,12 +67,12 @@ namespace backendConsumoE.Utilities
             htmlView.LinkedResources.Add(logoResource);
             message.AlternateViews.Add(htmlView);
 
-            using var smtp = new SmtpClient(settings.Host, settings.Port)
+            using var smtp = new SmtpClient(_gmailSettings.Host, _gmailSettings.Port)
             {
-                EnableSsl = settings.EnableSsl,
+                EnableSsl = _gmailSettings.EnableSsl,
                 DeliveryMethod = SmtpDeliveryMethod.Network,
                 UseDefaultCredentials = false,
-                Credentials = new NetworkCredential(settings.User, settings.Password),
+                Credentials = new NetworkCredential(_gmailSettings.User, _gmailSettings.Password),
                 Timeout = 20000
             };
 
@@ -85,7 +82,7 @@ namespace backendConsumoE.Utilities
             }
             catch (SmtpException ex)
             {
-                throw new InvalidOperationException($"Error al enviar el correo: {ex.StatusCode}", ex);
+                throw new InvalidOperationException($"Error al enviar el correo: {ex.StatusCode} - {ex.Message}", ex);
             }
         }
 
@@ -151,4 +148,5 @@ namespace backendConsumoE.Utilities
         }
     }
 
+   
 }
