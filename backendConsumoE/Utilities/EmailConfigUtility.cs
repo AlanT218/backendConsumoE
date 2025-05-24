@@ -1,126 +1,152 @@
-﻿namespace backendConsumoE.Utilities;
-
-using backendConsumoE.Dtos;
-using System;
+﻿using System;
+using System.IO;
 using System.Net;
 using System.Net.Mail;
+using System.Net.Mime;
 using System.Text.RegularExpressions;
+using Microsoft.Extensions.Configuration;
+using Microsoft.AspNetCore.Hosting;
+using backendConsumoE.Dtos;
 
-
+namespace backendConsumoE.Utilities
+{
     public class EmailConfigUtility
     {
-        private SmtpClient cliente;
-        private MailMessage email;
-        private string Host = "smtp.gmail.com";
-        private int Port = 587;
-        private string User = "opti.energyst@gmail.com";
-        private string Password = "iazmqwxcecesxvkk"; // Contraseña de aplicación
-        private bool EnabledSSL = true;
-
-        public EmailConfigUtility()
+        static EmailConfigUtility()
         {
-            cliente = new SmtpClient(Host, Port)
-            {
-                EnableSsl = EnabledSSL,
-                DeliveryMethod = SmtpDeliveryMethod.Network,
-                UseDefaultCredentials = false,
-                Credentials = new NetworkCredential(User, Password)
-            };
+            // Forzar TLS 1.2
+            ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
         }
 
-        public void EnviarCorreo(string destinatario, string asunto, int templateType, string name)
+        private readonly ProviderSettings _gmailSettings;
+        private readonly IWebHostEnvironment _env;
+
+        public EmailConfigUtility(IConfiguration config, IWebHostEnvironment env)
         {
-            if (!EsCorreoValido(destinatario))
+            _env = env ?? throw new ArgumentNullException(nameof(env));
+
+            _gmailSettings = config.GetSection("EmailSettings:Gmail").Get<ProviderSettings>()
+                               ?? throw new ArgumentException("Faltan las configuraciones de Gmail en appsettings.json");
+        }
+
+        public void EnviarCorreo(string destinatario, string asunto, int templateType, string nombre)
+        {
+            if (string.IsNullOrWhiteSpace(destinatario) || !EsCorreoValido(destinatario))
                 throw new ArgumentException("El correo proporcionado no es válido.");
+
+            string cuerpoHtml = ObtenerPlantilla(templateType, nombre);
+
+            using var message = new MailMessage()
+            {
+                From = new MailAddress(_gmailSettings.User, "Opti Energy"),
+                Subject = asunto,
+                IsBodyHtml = true,
+                Body = cuerpoHtml,
+                Priority = MailPriority.High
+            };
+
+            message.To.Add(destinatario);
+
+            // Cabeceras para prioridad alta
+            message.Headers.Add("X-Priority", "1");
+            message.Headers.Add("X-MSMail-Priority", "High");
+            message.Headers.Add("Importance", "High");
+
+            // Ruta absoluta de la imagen embebida
+            string logoPath = MapPath("~/Imagenes/LogoGestion.png");
+
+            if (!File.Exists(logoPath))
+                throw new FileNotFoundException("No se encontró la imagen del logo.", logoPath);
+
+            var htmlView = AlternateView.CreateAlternateViewFromString(cuerpoHtml, null, MediaTypeNames.Text.Html);
+            var logoResource = new LinkedResource(logoPath, MediaTypeNames.Image.Png)
+            {
+                ContentId = "LogoOptiEnergy",
+                TransferEncoding = TransferEncoding.Base64
+            };
+            htmlView.LinkedResources.Add(logoResource);
+            message.AlternateViews.Add(htmlView);
+
+            using var smtp = new SmtpClient(_gmailSettings.Host, _gmailSettings.Port)
+            {
+                EnableSsl = _gmailSettings.EnableSsl,
+                DeliveryMethod = SmtpDeliveryMethod.Network,
+                UseDefaultCredentials = false,
+                Credentials = new NetworkCredential(_gmailSettings.User, _gmailSettings.Password),
+                Timeout = 20000
+            };
 
             try
             {
-                string mensaje = ObtenerPlantilla(templateType, name);
-                email = new MailMessage(User, destinatario, asunto, mensaje)
-                {
-                    IsBodyHtml = true
-                };
-                cliente.Send(email);
+                smtp.Send(message);
             }
-            catch (Exception ex)
+            catch (SmtpException ex)
             {
-                Console.WriteLine("Error al enviar correo: " + ex.Message);
-                throw;
+                throw new InvalidOperationException($"Error al enviar el correo: {ex.StatusCode} - {ex.Message}", ex);
             }
         }
 
         private bool EsCorreoValido(string correo)
         {
-            string patron = @"^[^@\s]+@[^@\s]+\.[^@\s]+$";
-            return Regex.IsMatch(correo, patron, RegexOptions.IgnoreCase);
+            const string pattern = @"^[^@\s]+@[^@\s]+\.[^@\s]+$";
+            return Regex.IsMatch(correo, pattern, RegexOptions.IgnoreCase);
         }
 
-        private string ObtenerPlantilla(int templateType, string name)
+        private string ObtenerPlantilla(int templateType, string nombre)
         {
             return templateType switch
             {
-                1 => ObtenerPlantillaBienvenida(name),
-                _ => throw new ArgumentException("Tipo de plantilla no válido")
+                1 => ObtenerPlantillaBienvenida(nombre),
+                _ => throw new ArgumentException("Tipo de plantilla no válido.")
             };
         }
 
-        //private string ObtenerPlantillaBienvenida(string name) => $@"
-        //<!DOCTYPE html>
-        //<html lang='es'>
-        //<head><meta charset='UTF-8'><style>body{{font-family:Arial}}.header{{background:#800000;color:white}}</style></head>
-        //<body>
-        //    <div class='header'><h1>Bienvenido al sistema, {name}!</h1></div>
-        //    <div><p>Nos alegra que hayas ingresado correctamente.</p></div>
-        //    <footer><p>&copy; 202 G.5E CASTILLO ASOCIADOS</p></footer>
-        //</body>
-        //</html>";
-
-    private string ObtenerPlantillaBienvenida(string name )
-    {
-        return $@"
+        private string ObtenerPlantillaBienvenida(string nombre)
+        {
+            return $@"
             <body style='margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f4f4f4;'>
                 <table role='presentation' width='100%' cellspacing='0' cellpadding='0' border='0' align='center'>
                     <tr>
                         <td align='center'>
                             <table width='700' style='background-color: #ffffff; border-collapse: collapse;'>
-
-                                <!-- Encabezado -->
                                 <tr>
                                     <td style='background-color: #8dc63f; padding: 20px; text-align: center;'>
-                                        <img src='https://i.imgur.com/IMOmkV4.png' alt='Logo Gestión' style='max-width: 150px; display: block; margin: auto;' />
-                                        <h1 style='color: white; margin-top: 15px;'>Hola! {name}</h1>
+                                        <img src='cid:LogoOptiEnergy' alt='Logo Gestión' style='max-width: 150px; display: block; margin: auto;' />
+                                        <h1 style='color: white; margin-top: 15px;'>Hola {nombre}!</h1>
                                     </td>
                                 </tr>
-
-                                <!-- Cuerpo del mensaje -->
                                 <tr>
                                     <td style='padding: 30px; text-align: center; color: #333333; font-size: 18px;'>
-                                        <p>¡Gracias por unirte a nuestra comunidad! Estamos emocionados de tenerte 
-                                        con nosotros. En Opti Energy, nos dedicamos a ayudarte a monitorear y optimizar tu consumo energético, para que puedas reducir tus facturas de electricidad y usar la energía de manera más responsable.
-                                        .</p>
-                                        <p>A partir de ahora, puedes esperar recibir consejos prácticos para ahorrar energía, actualizaciones sobre nuestras herramientas
-                                        de monitoreo y las últimas noticias sobre eficiencia energética.</p>
+                                        <p>¡Gracias por unirte a nuestra comunidad!</p>
+                                        <p>En Opti Energy, nos dedicamos a ayudarte a monitorear y optimizar tu consumo energético.</p>
                                     </td>
                                 </tr>
-
-                                <!-- Imagen final -->
                                 <tr>
                                     <td style='padding: 20px; text-align: center;'>
                                         <img src='https://i.imgur.com/kFFVLb0.jpeg' alt='Imagen Final' style='max-width: 100%; height: auto;' />
                                     </td>
                                 </tr>
-
-                                <!-- Footer -->
                                 <tr>
-                                    <td style='padding: 20px; text-align: center;'> 
-                                           <img src='https://i.imgur.com/u70UA6A.png' alt='Imagen Final' style='max-width: 100%; height: auto;' />
+                                    <td style='padding: 20px; text-align: center;'>
+                                        <img src='https://i.imgur.com/u70UA6A.png' alt='Pie de página' style='max-width: 100%; height: auto;' />
                                     </td>
                                 </tr>
-
                             </table>
                         </td>
                     </tr>
                 </table>
             </body>";
+        }
+
+        private string MapPath(string virtualPath)
+        {
+            if (string.IsNullOrWhiteSpace(virtualPath) || !virtualPath.StartsWith("~/"))
+                throw new ArgumentException("La ruta virtual debe comenzar con '~/'.", nameof(virtualPath));
+
+            string relative = virtualPath.Substring(2).Replace('/', Path.DirectorySeparatorChar);
+            return Path.Combine(_env.ContentRootPath, relative);
+        }
     }
+
+   
 }

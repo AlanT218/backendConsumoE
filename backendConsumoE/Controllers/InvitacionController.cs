@@ -14,7 +14,10 @@ namespace backendConsumoE.Controllers
         public InvitacionController(InvitacionService service) => _service = service;
 
 
-        //[Authorize]
+        /// <summary>
+        /// Obtiene el ID del usuario a partir de su correo electrónico.
+        /// </summary>
+        [Authorize]
         [HttpGet("usuario/por-correo/{correo}")]
         public async Task<IActionResult> ObtenerUsuarioPorCorreo(string correo)
         {
@@ -37,6 +40,10 @@ namespace backendConsumoE.Controllers
             }
         }
 
+        /// <summary>
+        /// Envía una invitación para agregar un usuario a un hogar con un rol específico.
+        /// </summary>
+        [Authorize]
         [HttpPost("enviar")]
         public async Task<IActionResult> EnviarInvitacion([FromBody] EnviarInvitacionDto dto)
         {
@@ -68,6 +75,10 @@ namespace backendConsumoE.Controllers
             }
         }
 
+        /// <summary>
+        /// Lista todas las invitaciones pendientes para un usuario invitado específico.
+        /// </summary>
+        [Authorize]
         [HttpGet("pendientes/invitado/{idInvitado}")]
         public async Task<IActionResult> ListarPendientesPorInvitado(int idInvitado)
         {
@@ -86,6 +97,10 @@ namespace backendConsumoE.Controllers
             }
         }
 
+        /// <summary>
+        /// Acepta una invitación pendiente para un hogar.
+        /// </summary>
+        [Authorize]
         [HttpPost("aceptar")]
         public async Task<IActionResult> Aceptar([FromBody] ProcesarInvitacionDto dto)
         {
@@ -104,6 +119,10 @@ namespace backendConsumoE.Controllers
             }
         }
 
+        /// <summary>
+        /// Rechaza una invitación pendiente para un hogar.
+        /// </summary>
+        [Authorize]
         [HttpPost("rechazar")]
         public async Task<IActionResult> Rechazar([FromBody] ProcesarInvitacionDto dto)
         {
@@ -122,6 +141,10 @@ namespace backendConsumoE.Controllers
             }
         }
 
+
+        /// <summary>
+        /// Marca como expiradas todas las invitaciones vencidas según la lógica definida.
+        /// </summary>
         [HttpPost("expirar")]
         public async Task<IActionResult> Expirar()
         {
