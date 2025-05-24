@@ -3,10 +3,11 @@ using backendConsumoE.Dtos;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
+using backendConsumoE.Utilities;
 
 namespace backendConsumoE.Controllers
 {
-    [ApiController]
+        [ApiController]
     [Route("api/[controller]")]
     public class DuenioCasaController : ControllerBase
     {
@@ -16,6 +17,11 @@ namespace backendConsumoE.Controllers
         {
             _duenioCasaService = duenioCasaService;
         }
+
+        /// <summary>
+        /// Obtiene la lista de tipos de hogar disponibles para registrar un hogar.
+        /// </summary>
+        [Authorize]
         [HttpGet("tipos-hogar")]
         public async Task<IActionResult> ObtenerTiposHogar()
         {
@@ -30,33 +36,44 @@ namespace backendConsumoE.Controllers
             }
         }
 
-
-        [HttpPost("registrar-hogar")]
+        /// <summary>
+        /// Obtiene la lista de tipos de hogar disponibles para registrar un hogar.
+        /// </summary>
         [Authorize]
-        public async Task<IActionResult> RegistrarHogar([FromBody] RegistrarHogarDto dto)
+        [HttpPost("registrar-hogar")]
+        public async Task<IActionResult> RegistrarHogar([FromBody] HogarDto dto)
         {
-            if (dto == null || string.IsNullOrWhiteSpace(dto.Nombre) || dto.IdTipo <= 0)
-                return BadRequest(new { mensaje = "Todos los campos son obligatorios." });
-
-            // Extraer idUsuario de la claim NameIdentifier
-            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            if (string.IsNullOrEmpty(userIdClaim))
-                return Unauthorized("No se pudo identificar al usuario.");
-
-            dto.IdUsuario = int.Parse(userIdClaim);
-
             try
             {
-                var idNuevoHogar = await _duenioCasaService.RegistrarHogarAsync(dto);
-                return Ok(new { mensaje = "Hogar registrado exitosamente", idHogar = idNuevoHogar });
+                // 1) obtenemos el claim NameIdentifier (configurado en tu JWT como ClaimTypes.NameIdentifier)
+                var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                if (!int.TryParse(userIdClaim, out var userId))
+                    return Unauthorized(new { mensaje = "Token inválido o sin Id de usuario." });
+
+                // 2) asignamos el IdUsuario al DTO
+                dto.IdUsuario = userId;
+
+                // 3) llamamos al servicio
+                var resultado = await _duenioCasaService.RegistrarHogar(dto);
+                if (resultado)
+                    return Ok(new { mensaje = "Hogar registrado correctamente"});
+                else
+                    return BadRequest(new { mensaje = "No se pudo registrar el hogar." });
+            }
+            catch (ArgumentException ex)
+            {
+                // validaciones de dto.Nombre o dto.IdTipo
+                return BadRequest(new { mensaje = ex.Message });
             }
             catch (Exception ex)
             {
-                return StatusCode(500, new { mensaje = "Error al registrar el hogar: " + ex.Message });
+                return StatusCode(500, new { mensaje = ex.Message });
             }
         }
 
-
+        /// <summary>
+        /// Obtiene todos los hogares registrados por el usuario autenticado.
+        /// </summary>
         [Authorize]
         [HttpGet("Hogares")]
         public async Task<IActionResult> ObtenerHogares()
@@ -77,7 +94,10 @@ namespace backendConsumoE.Controllers
             }
         }
 
-        //[Authorize]
+        /// <summary>
+        /// Obtiene la lista de zonas disponibles en el sistema.
+        /// </summary>
+        [Authorize]
         [HttpGet("zonas")]
         public async Task<IActionResult> ObtenerZonas()
         {
@@ -92,7 +112,10 @@ namespace backendConsumoE.Controllers
             }
         }
 
-        //[Authorize]
+        /// <summary>
+        /// Devuelve la lista de electrodomésticos registrados por el dueño de casa.
+        /// </summary>
+        [Authorize]
         [HttpGet("electrodomesticos")]
         public async Task<IActionResult> ObtenerElectrodomesticos()
         {
@@ -107,7 +130,11 @@ namespace backendConsumoE.Controllers
             }
         }
 
-        //[Authorize]
+
+        /// <summary>
+        /// Agrega un nuevo electrodoméstico a una zona específica.
+        /// </summary>
+        [Authorize]
         [HttpPost("zona-electro")]
         public async Task<IActionResult> AgregarZonaElectro([FromBody] ZonaElectDto nuevaZonaElect)
         {
@@ -122,7 +149,10 @@ namespace backendConsumoE.Controllers
             }
         }
 
-
+        /// <summary>
+        /// Obtiene los electrodomésticos asignados a un hogar específico.
+        /// </summary>
+        [Authorize]
         [HttpGet("zona-electro/hogar/{idHogar}")]
         public async Task<IActionResult> ObtenerZonaElectPorHogar(int idHogar)
         {
@@ -141,7 +171,10 @@ namespace backendConsumoE.Controllers
             }
         }
 
-        // ACTUALIZAR electrodoméstico
+        /// <summary>
+        /// Actualiza los datos de un electrodoméstico asignado a una zona.
+        /// </summary>
+        [Authorize]
         [HttpPut("zona-electro/{idZonaElect}")]
         public async Task<IActionResult> ActualizarZonaElectro(int idZonaElect, [FromBody] ZonaElectroActualizarDto dto)
         {
@@ -156,7 +189,10 @@ namespace backendConsumoE.Controllers
             }
         }
 
-        // ELIMINAR electrodoméstico
+        /// <summary>
+        /// Cambia el estado de un electrodoméstico de una zona específica a inactivo.
+        /// </summary>
+        [Authorize]
         [HttpDelete("zona-electro/{idZonaElect}")]
         public async Task<IActionResult> EliminarZonaElect(int idZonaElect)
         {
@@ -174,8 +210,11 @@ namespace backendConsumoE.Controllers
                 return StatusCode(500, new { mensaje = "Error al eliminar el electrodoméstico: " + ex.Message });
             }
         }
-        
-        // POST: api/DuenioCasa/cambiar-estado
+
+        /// <summary>
+        /// Cambia el estado (encendido/apagado) de un electrodoméstico.
+        /// </summary>
+        [Authorize]
         [HttpPost("cambiar-estado")]
         public async Task<IActionResult> CambiarEstado([FromBody] CambioEstadoDto dto)
         {
@@ -200,7 +239,11 @@ namespace backendConsumoE.Controllers
                 return StatusCode(500, new { mensaje = ex.Message });
             }
         }
-        // GET: api/DuenioCasa/estado-actual/{idZonaElect}
+
+        /// <summary>
+        /// Obtiene el estado actual (encendido o apagado) de un electrodoméstico asignado a una zona.
+        /// </summary>
+        [Authorize]
         [HttpGet("estado-actual/{idZonaElect}")]
         public async Task<IActionResult> ObtenerEstadoActual(int idZonaElect)
         {
@@ -215,5 +258,39 @@ namespace backendConsumoE.Controllers
             }
         }
 
+        /// <summary>
+        /// Genera un reporte en PDF con el consumo energético de un hogar.
+        /// </summary>
+        [Authorize]
+        [HttpGet("generar-reporte-pdf/{idHogar}")]
+        public IActionResult GenerarReportePdf(int idHogar)
+        {
+            var datos = _duenioCasaService.ObtenerDatosReporteConsumo(idHogar);
+
+            if (datos == null || !datos.Any())
+                return NotFound("No se encontraron datos de consumo.");
+
+            var pdfBytes = PdfGenerator.CreateReporteConsumoPdf(datos);
+
+            return File(pdfBytes, "application/pdf", $"ReporteConsumo_{DateTime.Now:yyyyMMdd_HHmmss}.pdf");
+        }
+
+        /// <summary>
+        /// Devuelve la lista de recomendaciones energéticas disponibles.
+        /// </summary>
+        [Authorize]
+        [HttpGet("recomendaciones")]
+        public async Task<IActionResult> ObtenerTodasRecomendaciones()
+        {
+            try
+            {
+                var lista = await _duenioCasaService.ObtenerTodasRecomendacionesAsync();
+                return Ok(lista);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { mensaje = ex.Message });
+            }
+        }
     }
 }

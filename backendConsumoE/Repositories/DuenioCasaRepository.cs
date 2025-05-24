@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 
 namespace backendConsumoE.Repositories
 {
-    public class DuenioCasaRepository
+        public class DuenioCasaRepository
     {
         private readonly DbContextUtility _dbContextUtility;
 
@@ -44,43 +44,47 @@ namespace backendConsumoE.Repositories
             return tipos;
         }
 
-
-        public async Task<int> RegistrarHogarAsync(RegistrarHogarDto dto)
+        public async Task<bool> RegistrarHogar(HogarDto dto)
         {
+            const string sqlInsertHogar = @"
+        
+        INSERT INTO HOGAR (nombre, id_tipo) 
+        OUTPUT INSERTED.id_hogar
+        VALUES (@nombre, @idTipo);";
+
+            const string sqlInsertUsuHogar = @"
+        INSERT INTO USU_HOGAR (id_usuario, id_hogar, id_rol)
+VALUES (@idUsuario, @idHogar, 1)";
+
             try
             {
                 using var connection = _dbContextUtility.GetOpenConnection();
                 using var transaction = connection.BeginTransaction();
 
-                // Insertar hogar
-                const string insertHogarSql = @"
-            INSERT INTO HOGAR (nombre, id_tipo)
-            OUTPUT INSERTED.id_hogar
-            VALUES (@Nombre, @IdTipo)";
+                int nuevoIdHogar;
 
-                using var insertHogarCmd = new SqlCommand(insertHogarSql, connection, transaction);
-                insertHogarCmd.Parameters.AddWithValue("@Nombre", dto.Nombre);
-                insertHogarCmd.Parameters.AddWithValue("@IdTipo", dto.IdTipo);
+                using (var command = new SqlCommand(sqlInsertHogar, connection, transaction))
+                {
+                    command.Parameters.AddWithValue("@nombre", dto.Nombre);
+                    command.Parameters.AddWithValue("@idTipo", dto.IdTipo);
 
-                var idHogar = (int)await insertHogarCmd.ExecuteScalarAsync();
+                    nuevoIdHogar = (int)await command.ExecuteScalarAsync();
+                }
 
-                // Insertar en USU_HOGAR
-                const string insertUsuHogarSql = @"
-            INSERT INTO USU_HOGAR (id_usuario, id_hogar)
-            VALUES (@IdUsuario, @IdHogar)";
+                using (var command = new SqlCommand(sqlInsertUsuHogar, connection, transaction))
+                {
+                    command.Parameters.AddWithValue("@idUsuario", dto.IdUsuario);
+                    command.Parameters.AddWithValue("@idHogar", nuevoIdHogar);
 
-                using var insertUsuHogarCmd = new SqlCommand(insertUsuHogarSql, connection, transaction);
-                insertUsuHogarCmd.Parameters.AddWithValue("@IdUsuario", dto.IdUsuario);
-                insertUsuHogarCmd.Parameters.AddWithValue("@IdHogar", idHogar);
-
-                await insertUsuHogarCmd.ExecuteNonQueryAsync();
+                    await command.ExecuteNonQueryAsync();
+                }
 
                 transaction.Commit();
-                return idHogar;
+                return true;
             }
             catch (Exception ex)
             {
-                throw new Exception("Error en el repositorio al registrar el hogar: " + ex.Message);
+                throw new Exception("Error al registrar el hogar: " + ex.Message);
             }
         }
 
@@ -89,11 +93,36 @@ namespace backendConsumoE.Repositories
             var hogares = new List<HogarDto>();
 
             const string sql = @"
-        SELECT H.id_hogar, H.nombre, TH.nombre_tipo, UH.id_usuario, H.id_tipo
-        FROM HOGAR H
-        INNER JOIN USU_HOGAR UH ON UH.id_hogar = H.id_hogar
-        INNER JOIN TIPO_HOGAR TH ON H.id_tipo = TH.id_tipo
-        WHERE UH.id_usuario = @idUsuario";
+            SELECT 
+                H.id_hogar,
+                H.nombre,
+                TH.nombre_tipo      AS NombreTipo,
+                UH.id_usuario,
+                H.id_tipo           AS IdTipo,
+                UH.id_rol           AS IdRol,
+                R.nombre            AS NombreRol
+            FROM HOGAR H
+            INNER JOIN USU_HOGAR UH 
+                ON UH.id_hogar = H.id_hogar
+            INNER JOIN TIPO_HOGAR TH 
+                ON H.id_tipo = TH.id_tipo
+            INNER JOIN ROL R 
+                ON UH.id_rol = R.id_rol
+            -- unimos invitación para invitados (rol=3)
+            LEFT JOIN INVITACION I 
+                ON I.id_hogar    = UH.id_hogar
+               AND I.id_invitado = UH.id_usuario
+               AND I.id_rol      = UH.id_rol
+               AND I.estado      = 'Aceptada'
+            WHERE UH.id_usuario = @idUsuario
+              AND (
+                    UH.id_rol <> 3
+                 OR (UH.id_rol = 3 
+                     AND I.id IS NOT NULL 
+                     AND I.fecha_expiracion > GETDATE()
+                    )
+                  )
+            ";
 
             try
             {
@@ -110,13 +139,15 @@ namespace backendConsumoE.Repositories
                         Nombre = reader.GetString(1),
                         NombreTipo = reader.GetString(2),
                         IdUsuario = reader.GetInt32(3),
-                        IdTipo = reader.GetInt32(4)
+                        IdTipo = reader.GetInt32(4),
+                        IdRol = reader.GetInt32(5),
+                        NombreRol = reader.GetString(6)
                     });
                 }
             }
             catch (Exception ex)
             {
-                throw new Exception("Error al obtener los hogares: " + ex.Message);
+                throw new Exception("Error al obtener los hogares: " + ex.Message, ex);
             }
 
             return hogares;
@@ -183,12 +214,11 @@ namespace backendConsumoE.Repositories
             return electrodomesticos;
         }
 
-        // INSERTAR una nueva zona con electrodoméstico (activo siempre 1, estado false)
         public async Task InsertarZonaElectroAsync(ZonaElectDto nuevaZonaElect)
         {
             const string sql = @"
-    INSERT INTO ZONA_ELECT (id_zona, id_electro, id_hogar, consumo, estado, activo)
-    VALUES (@IdZona, @IdElectro, @IdHogar, @Consumo, @Estado, @Activo)";
+            INSERT INTO ZONA_ELECT (id_zona, id_electro, id_hogar, consumo, estado)
+            VALUES (@IdZona, @IdElectro, @IdHogar, @Consumo, @Estado)";
 
             try
             {
@@ -199,8 +229,7 @@ namespace backendConsumoE.Repositories
                 command.Parameters.AddWithValue("@IdElectro", nuevaZonaElect.IdElectro);
                 command.Parameters.AddWithValue("@IdHogar", nuevaZonaElect.IdHogar);
                 command.Parameters.AddWithValue("@Consumo", nuevaZonaElect.Consumo);
-                command.Parameters.AddWithValue("@Estado", false); // siempre apagado al insertar
-                command.Parameters.AddWithValue("@Activo", true);  // siempre activo al insertar
+                command.Parameters.AddWithValue("@Estado", false); // siempre falso
 
                 await command.ExecuteNonQueryAsync();
             }
@@ -210,15 +239,15 @@ namespace backendConsumoE.Repositories
             }
         }
 
-        // LISTAR electrodomésticos activos de un hogar
+        // LISTAR electrodomésticos de un hogar
         public async Task<List<ZonaElectroVistaDto>> ObtenerZonaElectPorHogarAsync(int idHogar)
         {
             const string sql = @"
-    SELECT ZE.id_zona_elect, Z.nombre AS NombreZona, E.nombre AS NombreElectrodomestico, ZE.consumo
-    FROM ZONA_ELECT ZE
-    INNER JOIN ZONA Z ON ZE.id_zona = Z.id_zona
-    INNER JOIN ELECTRODOMESTICO E ON ZE.id_electro = E.id_electro
-    WHERE ZE.id_hogar = @IdHogar AND ZE.activo = 1";
+            SELECT ZE.id_zona_elect, Z.nombre AS NombreZona, E.nombre AS NombreElectrodomestico, ZE.consumo
+            FROM ZONA_ELECT ZE
+            INNER JOIN ZONA Z ON ZE.id_zona = Z.id_zona
+            INNER JOIN ELECTRODOMESTICO E ON ZE.id_electro = E.id_electro
+            WHERE ZE.id_hogar = @IdHogar";
 
             var lista = new List<ZonaElectroVistaDto>();
 
@@ -236,7 +265,7 @@ namespace backendConsumoE.Repositories
                         IdZonaElect = reader.GetInt32(0),
                         NombreZona = reader.GetString(1),
                         NombreElectrodomestico = reader.GetString(2),
-                        Consumo = Convert.ToSingle(reader.GetDouble(3))
+                        Consumo = Convert.ToSingle(reader.GetDouble(3)) // Por si consumo es DOUBLE en la BD
                     });
                 }
             }
@@ -248,16 +277,16 @@ namespace backendConsumoE.Repositories
             return lista;
         }
 
-        // ACTUALIZAR una zona con electrodoméstico (mantiene estado apagado y activo sin cambio)
+
         public async Task ActualizarZonaElectroAsync(int idZonaElect, ZonaElectroActualizarDto dto)
         {
             const string sql = @"
-    UPDATE ZONA_ELECT
-    SET id_zona = @IdZona,
-        id_electro = @IdElectro,
-        consumo = @Consumo,
-        estado = 0
-    WHERE id_zona_elect = @IdZonaElect AND activo = 1";
+            UPDATE ZONA_ELECT
+            SET id_zona = @IdZona,
+                id_electro = @IdElectro,
+                consumo = @Consumo,
+                estado = 0
+            WHERE id_zona_elect = @IdZonaElect";
 
             try
             {
@@ -272,7 +301,7 @@ namespace backendConsumoE.Repositories
                 int rowsAffected = await command.ExecuteNonQueryAsync();
                 if (rowsAffected == 0)
                 {
-                    throw new Exception("No se encontró el registro activo para actualizar.");
+                    throw new Exception("No se encontró el registro para actualizar.");
                 }
             }
             catch (Exception ex)
@@ -281,13 +310,13 @@ namespace backendConsumoE.Repositories
             }
         }
 
-        // "ELIMINAR" una zona con electrodoméstico (solo marca como inactivo)
+
+        // ELIMINAR un electrodoméstico
         public async Task<bool> EliminarZonaElectAsync(int idZonaElect)
         {
             const string sql = @"
-    UPDATE ZONA_ELECT
-    SET activo = 0
-    WHERE id_zona_elect = @IdZonaElect";
+            DELETE FROM ZONA_ELECT
+            WHERE id_zona_elect = @IdZonaElect";
 
             try
             {
@@ -305,22 +334,24 @@ namespace backendConsumoE.Repositories
             }
         }
 
-        // CAMBIAR estado de encendido/apagado
         public async Task CambiarEstadoElectrodomesticoAsync(CambioEstadoDto dto)
         {
             try
             {
                 using var connection = _dbContextUtility.GetOpenConnection();
+
+                // Iniciar transacción
                 using var transaction = connection.BeginTransaction();
 
                 // Obtener estado actual
-                const string selectSql = @"SELECT estado FROM ZONA_ELECT WHERE id_zona_elect = @IdZonaElect AND activo = 1";
+                const string selectSql = @"SELECT estado FROM ZONA_ELECT WHERE id_zona_elect = @IdZonaElect";
                 using var selectCmd = new SqlCommand(selectSql, connection, transaction);
                 selectCmd.Parameters.AddWithValue("@IdZonaElect", dto.IdZonaElect);
 
                 var estadoActual = (bool?)await selectCmd.ExecuteScalarAsync();
+
                 if (estadoActual == null)
-                    throw new Exception("ZonaElectro no encontrada o inactiva.");
+                    throw new Exception("ZonaElectro no encontrada.");
 
                 if (estadoActual == dto.NuevoEstado)
                     throw new Exception("El estado ya se encuentra como solicitado.");
@@ -332,23 +363,23 @@ namespace backendConsumoE.Repositories
                 updateCmd.Parameters.AddWithValue("@IdZonaElect", dto.IdZonaElect);
                 await updateCmd.ExecuteNonQueryAsync();
 
-                // Registrar en CONSUMO
-                if (dto.NuevoEstado)
+                // Insertar o actualizar en CONSUMO
+                if (dto.NuevoEstado) // ENCENDER
                 {
                     const string insertConsumo = @"
-            INSERT INTO CONSUMO (id_zona_elect, fecha_inicio, id_user_inicio)
-            VALUES (@IdZonaElect, GETDATE(), @IdUsuario)";
+                INSERT INTO CONSUMO (id_zona_elect, fecha_inicio, id_user_inicio)
+                VALUES (@IdZonaElect, GETDATE(), @IdUsuario)";
                     using var insertCmd = new SqlCommand(insertConsumo, connection, transaction);
                     insertCmd.Parameters.AddWithValue("@IdZonaElect", dto.IdZonaElect);
                     insertCmd.Parameters.AddWithValue("@IdUsuario", dto.IdUsuario);
                     await insertCmd.ExecuteNonQueryAsync();
                 }
-                else
+                else // APAGAR
                 {
                     const string updateConsumo = @"
-            UPDATE CONSUMO
-            SET fecha_fin = GETDATE(), id_user_fin = @IdUsuario
-            WHERE id_zona_elect = @IdZonaElect AND fecha_fin IS NULL";
+                UPDATE CONSUMO
+                SET fecha_fin = GETDATE(), id_user_fin = @IdUsuario
+                WHERE id_zona_elect = @IdZonaElect AND fecha_fin IS NULL";
                     using var updateConsumoCmd = new SqlCommand(updateConsumo, connection, transaction);
                     updateConsumoCmd.Parameters.AddWithValue("@IdZonaElect", dto.IdZonaElect);
                     updateConsumoCmd.Parameters.AddWithValue("@IdUsuario", dto.IdUsuario);
@@ -364,21 +395,84 @@ namespace backendConsumoE.Repositories
                 throw new Exception("Error al cambiar el estado del electrodoméstico: " + ex.Message);
             }
         }
-
-        // OBTENER el estado actual (encendido/apagado)
         public async Task<bool> ObtenerEstadoZonaElectAsync(int idZonaElect)
         {
             using var connection = _dbContextUtility.GetOpenConnection();
-            const string sql = @"SELECT estado FROM ZONA_ELECT WHERE id_zona_elect = @IdZonaElect AND activo = 1";
+            const string sql = @"SELECT estado FROM ZONA_ELECT WHERE id_zona_elect = @IdZonaElect";
             using var command = new SqlCommand(sql, connection);
             command.Parameters.AddWithValue("@IdZonaElect", idZonaElect);
 
             var result = await command.ExecuteScalarAsync();
             if (result == null || result == DBNull.Value)
-                throw new Exception("ZonaElectro no encontrada o inactiva.");
+                throw new Exception("ZonaElectro no encontrada.");
 
             return (bool)result;
         }
+        public List<ConsumoReporteDto> ObtenerDatosReporteConsumo(int idHogar)
+        {
+            const string sql = @"
+        SELECT 
+            z.Nombre                AS NombreZona,
+            e.Nombre                AS NombreElectrodomestico,
+            ze.Consumo              AS Consumo,
+            SUM(DATEDIFF(SECOND, c.fecha_inicio, c.fecha_fin) / 3600.0 * ze.Consumo) AS ConsumoWh
+        FROM ZONA_ELECT ze
+        INNER JOIN CONSUMO c 
+            ON ze.id_zona_elect = c.id_zona_elect
+        INNER JOIN ZONA z 
+            ON ze.id_zona = z.id_zona
+        INNER JOIN ELECTRODOMESTICO e 
+            ON ze.id_electro = e.id_electro
+        WHERE ze.id_hogar = @idHogar
+          AND c.fecha_fin IS NOT NULL
+        GROUP BY z.Nombre, e.Nombre, ze.Consumo;
+        ";
 
+            var result = new List<ConsumoReporteDto>();
+
+            using var connection = _dbContextUtility.GetOpenConnection();
+            using var cmd = new SqlCommand(sql, connection);
+            cmd.Parameters.AddWithValue("@idHogar", idHogar);
+
+            using var reader = cmd.ExecuteReader();
+            while (reader.Read())
+            {
+                result.Add(new ConsumoReporteDto
+                {
+                    NombreZona = reader.GetString(0),
+                    NombreElectrodomestico = reader.GetString(1),
+                    Consumo = reader.GetDouble(2),
+                    ConsumoWh = reader.GetDouble(3)
+                });
+            }
+
+            return result;
+        }
+        public async Task<List<RecomendacionDto>> ObtenerTodasRecomendacionesAsync()
+        {
+            const string sql = @"
+            SELECT r.id_recomendacion AS IdRecomendacion,
+                   e.nombre          AS NombreElectro,
+                   r.texto           AS Texto
+            FROM RECOMENDACION r
+            INNER JOIN ELECTRODOMESTICO e ON r.id_electro = e.id_electro
+            ORDER BY e.nombre;";
+
+            var lista = new List<RecomendacionDto>();
+            using var connection = _dbContextUtility.GetOpenConnection();
+            using var cmd = new SqlCommand(sql, connection);
+
+            using var reader = await cmd.ExecuteReaderAsync();
+            while (await reader.ReadAsync())
+            {
+                lista.Add(new RecomendacionDto
+                {
+                    IdRecomendacion = reader.GetInt32(0),
+                    NombreElectro = reader.GetString(1),
+                    Texto = reader.GetString(2)
+                });
+            }
+            return lista;
+        }
     }
 }

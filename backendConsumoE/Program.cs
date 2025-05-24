@@ -3,6 +3,7 @@ using backendConsumoE.Repositories;
 using backendConsumoE.Services;
 using backendConsumoE.Utilities;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 
@@ -65,6 +66,10 @@ builder.Services.AddScoped<UserRepository>();
 builder.Services.AddScoped<DbContextUtility>();
 builder.Services.AddScoped<DuenioCasaService>();
 builder.Services.AddScoped<DuenioCasaRepository>();
+builder.Services.AddScoped<InvitacionRepository>();
+builder.Services.AddScoped<InvitacionService>();
+builder.Services.AddTransient<EmailConfigUtility>();
+
 
 
 // Configuración Swagger
@@ -88,6 +93,10 @@ builder.Services.AddSwaggerGen(options =>
         }
     });
 
+    // Esta línea permite que Swagger lea los comentarios XML
+    var xmlFilename = $"{System.Reflection.Assembly.GetExecutingAssembly().GetName().Name}.xml";
+    options.IncludeXmlComments(Path.Combine(AppContext.BaseDirectory, xmlFilename));
+    
     options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {
         Description = "Ingrese 'Bearer' seguido de su token JWT válido en el campo de autorización.\r\nEjemplo: \"Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9\".",
@@ -124,7 +133,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
-
+app.UseStaticFiles();
 app.UseCors("AllowFrontend");
 app.UseAuthentication();
 app.UseAuthorization();

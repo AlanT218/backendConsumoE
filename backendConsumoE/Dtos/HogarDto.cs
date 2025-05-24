@@ -2,12 +2,15 @@
 {
     public class HogarDto
     {
-        public int Id { get; set; } // Id del hogar
-        public string Nombre { get; set; } // Nombre del hogar
-        public int IdUsuario { get; set; } // Usuario que lo registra
+      public int Id { get; set; }
+      public string Nombre { get; set; }
+      public int IdTipo { get; set; }
+      public string NombreTipo { get; set; }
+      public int IdUsuario { get; set; }
 
-        public int IdTipo { get; set; } // FK al tipo de hogar
-        public string NombreTipo { get; set; } // Nombre del tipo de hogar (para lectura)
+      // Campos añadidos para roles
+      public int IdRol { get; set; }
+      public string NombreRol { get; set; }
     }
 
 }
